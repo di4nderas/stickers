@@ -85,6 +85,28 @@
         </svg>
       </div>
     </li>
+
+    <li class="wa-chat" data-tool="tool3" tabindex="0" role="button" aria-label="Historial de stickers">
+      <div class="wa-chat__avatar" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <path d="m21 15-5-5L5 21"/>
+        </svg>
+      </div>
+      <div class="wa-chat__body">
+        <p class="wa-chat__name">Historial de stickers</p>
+        <p class="wa-chat__last">Explora y crea packs personalizados</p>
+      </div>
+      <div class="wa-chat__meta">
+        <span class="wa-chat__time" data-tool-time="tool3"></span>
+        <svg class="wa-chat__mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 15V10a6 6 0 1 0-12 0v5l-2 2h16z"/>
+          <path d="M10 20a2 2 0 0 0 4 0"/>
+          <line x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+      </div>
+    </li>
   </ul>
 </div>
 
@@ -372,6 +394,56 @@ Suelta tus archivos o pulsa el clip. Cuando los tengas todos, pulsa el botón ve
       Suelta un MP4 corto, mueve el cuadrado por donde quieras y elige hasta 5 segundos. Te devolvemos un WebP animado de 512 × 512 listo para WhatsApp.
     </p>
   </div>
+</section>
+
+<!-- ============================================================
+     TOOL 3 - HISTORIAL Y PACKS PERSONALIZADOS
+     ============================================================ -->
+<section id="tool3" class="tool" aria-hidden="true">
+  <header class="tool-head">
+    <button type="button" class="tool-head__back" data-close="tool3" aria-label="Volver">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5"/>
+        <path d="M12 19l-7-7 7-7"/>
+      </svg>
+    </button>
+    <h2>Historial de stickers</h2>
+  </header>
+
+  <main class="gallery-board">
+    <div class="gallery-intro">
+      <h3>Stickers de la comunidad</h3>
+      <p>Elige entre 3 y 30 stickers aprobados para crear tu pack personalizado.</p>
+    </div>
+
+    <label class="gallery-search">
+      <span class="sr-only">Buscar stickers</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/>
+        <line x1="16.5" y1="16.5" x2="21" y2="21"/>
+      </svg>
+      <input id="t3-search" type="search" placeholder="Buscar por pack o autor" autocomplete="off">
+    </label>
+
+    <p class="gallery-selection" id="t3-selection" aria-live="polite">0 seleccionados · mínimo 3, máximo 30</p>
+    <div class="gallery-grid" id="t3-grid" aria-label="Stickers aprobados"></div>
+    <button type="button" class="ghost gallery-more" id="t3-more" hidden>Cargar más</button>
+    <p class="status gallery-status" id="t3-status" role="status" aria-live="polite">Abre esta sección para cargar la galería.</p>
+  </main>
+
+  <footer class="gallery-footer">
+    <div class="gallery-footer__fields">
+      <label class="gallery-field">
+        <span>Nombre del pack</span>
+        <input id="t3-title" maxlength="60" value="Pack personalizado">
+      </label>
+      <label class="gallery-field">
+        <span>Autor</span>
+        <input id="t3-author" maxlength="60" value="Yo">
+      </label>
+    </div>
+    <button type="button" class="gallery-create" id="t3-create" disabled>Crear pack seleccionado</button>
+  </footer>
 </section>
 
 

@@ -57,6 +57,7 @@
       tool.setAttribute('aria-hidden', 'false');
       tool.scrollTop = 0;
       stampTool(toolId);
+      if (toolId === 'tool3') document.dispatchEvent(new Event('sticker-gallery-open'));
     }
 
     function closeTool(toolId) {
@@ -580,8 +581,268 @@
       scrollToEnd();
     }
 
+    let archivedStickerCount = 0;
+    let duplicateStickerCount = 0;
+    let archiveFailureCount = 0;
+    let archiveStopped = false;
+    let archiveFailureMessage = '';
+
+    function blobToBase64(blob) {
+      return blob.arrayBuffer().then(buffer => {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        }
+        return btoa(binary);
+      });
+    }
+
+    async function archiveSticker(item, packTitle, author, position, total) {
+      setProgress(`Archivando sticker ${position} de ${total} en el historial…`);
+      const image = await blobToBase64(item.out);
+      const response = await fetch('/api/sticker-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image,
+          filename: item.file.name.replace(/\.[^.]+$/, '') + '.webp',
+          packTitle,
+          author,
+          animated: item.animated
+        })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.status === 409) {
+        duplicateStickerCount++;
+        return;
+      }
+      if (!response.ok) throw new Error(result.error || `Error HTTP ${response.status}`);
+      archivedStickerCount++;
+    }
+
+    /* ---------- Historial visual de stickers ---------- */
+
+    const galleryGrid = document.getElementById('t3-grid');
+    const galleryStatus = document.getElementById('t3-status');
+    const galleryMore = document.getElementById('t3-more');
+    const gallerySearch = document.getElementById('t3-search');
+    const gallerySelection = document.getElementById('t3-selection');
+    const galleryCreate = document.getElementById('t3-create');
+    const galleryTitle = document.getElementById('t3-title');
+    const galleryAuthor = document.getElementById('t3-author');
+    let galleryItems = [];
+    let galleryOffset = 0;
+    let galleryHasMore = true;
+    let galleryLoading = false;
+    const selectedGalleryIds = new Set();
+
+    function setGalleryStatus(text, type = '') {
+      galleryStatus.textContent = text;
+      galleryStatus.classList.toggle('is-busy', type === 'busy');
+      galleryStatus.classList.toggle('is-warn', type === 'warn');
+    }
+
+    function normalizeSearch(value) {
+      return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function getSelectedGalleryItems() {
+      return galleryItems.filter(item => selectedGalleryIds.has(item.id));
+    }
+
+    function updateGallerySelection() {
+      const selected = getSelectedGalleryItems();
+      const animatedCount = selected.filter(item => item.is_animated).length;
+      const staticCount = selected.length - animatedCount;
+      const validGroups = (!animatedCount || animatedCount >= 3) && (!staticCount || staticCount >= 3);
+      gallerySelection.textContent = `${selected.length}/30 seleccionados · mínimo 3 · máximo 30` +
+        (animatedCount && staticCount ? ` · ${staticCount} estáticos, ${animatedCount} animados` : '');
+      galleryCreate.disabled = selected.length < 3 || selected.length > 30 || !validGroups || galleryLoading;
+      if (selected.length >= 3 && !validGroups) {
+        setGalleryStatus('Cada pack debe tener al menos 3 stickers del mismo tipo. Añade más del tipo que falta o desmarca esa categoría.', 'warn');
+      } else if (galleryStatus.classList.contains('is-warn') && galleryItems.length && !galleryLoading) {
+        setGalleryStatus(`${galleryItems.length} stickers cargados. Selecciona de 3 a 30.`);
+      }
+      renderGallery();
+    }
+
+    function renderGallery() {
+      const query = normalizeSearch(gallerySearch.value.trim());
+      const visibleItems = galleryItems.filter(item =>
+        !query || normalizeSearch(`${item.pack_title} ${item.author} ${item.filename}`).includes(query)
+      );
+      galleryGrid.replaceChildren();
+
+      if (!visibleItems.length) {
+        const empty = document.createElement('p');
+        empty.className = 'gallery-empty';
+        empty.textContent = galleryItems.length
+          ? 'No hay stickers que coincidan con la búsqueda.'
+          : 'Todavía no hay stickers aprobados para mostrar.';
+        galleryGrid.appendChild(empty);
+        return;
+      }
+
+      visibleItems.forEach(item => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'gallery-card';
+        button.setAttribute('aria-pressed', String(selectedGalleryIds.has(item.id)));
+        button.setAttribute('aria-label', `${item.filename}, ${item.is_animated ? 'animado' : 'estático'}`);
+
+        const image = document.createElement('img');
+        image.src = item.imageUrl;
+        image.alt = '';
+        image.loading = 'lazy';
+        image.onerror = () => {
+          image.removeAttribute('src');
+          image.alt = 'No se pudo cargar este sticker';
+        };
+
+        const check = document.createElement('span');
+        check.className = 'gallery-card__check';
+        const selectedIndex = Array.from(selectedGalleryIds).indexOf(item.id);
+        check.textContent = selectedIndex >= 0 ? String(selectedIndex + 1) : '+';
+
+        const meta = document.createElement('span');
+        meta.className = 'gallery-card__meta';
+        meta.textContent = `${item.pack_title} · ${item.author}` + (item.is_animated ? ' · Animado' : '');
+
+        button.append(image, check, meta);
+        button.addEventListener('click', () => {
+          if (selectedGalleryIds.has(item.id)) {
+            selectedGalleryIds.delete(item.id);
+          } else if (selectedGalleryIds.size >= 30) {
+            setGalleryStatus('El máximo por pack es de 30 stickers.', 'warn');
+            return;
+          } else {
+            selectedGalleryIds.add(item.id);
+          }
+          updateGallerySelection();
+        });
+        galleryGrid.appendChild(button);
+      });
+    }
+
+    async function loadGallery(reset = false) {
+      if (galleryLoading) return;
+      if (reset) {
+        galleryItems = [];
+        galleryOffset = 0;
+        galleryHasMore = true;
+        selectedGalleryIds.clear();
+      }
+      if (!galleryHasMore && !reset) return;
+      galleryLoading = true;
+      galleryMore.hidden = true;
+      galleryMore.textContent = 'Cargar más';
+      setGalleryStatus('Cargando stickers aprobados…', 'busy');
+      updateGallerySelection();
+
+      try {
+        const response = await fetch(`/api/stickers?limit=30&offset=${galleryOffset}`, { cache: 'no-store' });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || `Error HTTP ${response.status}`);
+        const known = new Set(galleryItems.map(item => item.id));
+        for (const sticker of result.stickers || []) {
+          if (!known.has(sticker.id)) galleryItems.push(sticker);
+        }
+        galleryOffset = Number(result.nextOffset) || galleryItems.length;
+        galleryHasMore = Boolean(result.hasMore);
+        renderGallery();
+        if (galleryHasMore) {
+          galleryMore.hidden = false;
+        } else {
+          galleryMore.hidden = true;
+        }
+        setGalleryStatus(galleryItems.length
+          ? `${galleryItems.length} stickers cargados. Selecciona de 3 a 30.`
+          : 'Aún no hay stickers aprobados en el historial.');
+      } catch (error) {
+        console.error('No se pudo cargar el historial de stickers:', error);
+        setGalleryStatus(error.message || 'No se pudo cargar la galería.', 'warn');
+        galleryMore.textContent = 'Reintentar';
+        galleryMore.hidden = false;
+      } finally {
+        galleryLoading = false;
+        updateGallerySelection();
+        if (galleryHasMore && galleryItems.length) galleryMore.hidden = false;
+      }
+    }
+
+    async function createSelectedPacks() {
+      const selected = getSelectedGalleryItems();
+      const groups = [
+        { titleSuffix: 'estáticos', items: selected.filter(item => !item.is_animated) },
+        { titleSuffix: 'animados', items: selected.filter(item => item.is_animated) }
+      ].filter(group => group.items.length);
+      if (selected.length < 3 || selected.length > 30 || groups.some(group => group.items.length < 3)) {
+        setGalleryStatus('Selecciona de 3 a 30 stickers y al menos 3 de cada tipo seleccionado.', 'warn');
+        return;
+      }
+
+      galleryCreate.disabled = true;
+      galleryMore.disabled = true;
+      try {
+        const title = galleryTitle.value.trim() || 'Pack personalizado';
+        const author = galleryAuthor.value.trim() || 'Yo';
+        for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+          const group = groups[groupIndex];
+          setGalleryStatus(`Preparando pack ${groupIndex + 1} de ${groups.length} (${group.titleSuffix})…`, 'busy');
+          const blobs = [];
+          for (const item of group.items) {
+            const response = await fetch(item.imageUrl);
+            if (!response.ok) throw new Error(`No se pudo recuperar ${item.filename}.`);
+            blobs.push(await response.blob());
+          }
+
+          const packTitle = groups.length > 1 ? `${title} ${groupIndex + 1}` : title;
+          const zip = new JSZip();
+          zip.file('author.txt', author);
+          zip.file('title.txt', packTitle);
+          let stamp = Math.floor(Date.now() / 1000);
+          for (const blob of blobs) {
+            zip.file(`${stamp++}.webp`, await blob.arrayBuffer(), { compression: 'STORE' });
+          }
+          zip.file(`${stamp}.png`, await makeTray(blobs[0]), { compression: 'STORE' });
+          const archive = await zip.generateAsync({ type: 'blob' });
+          const filename = packTitle.replace(/[\\/:*?"<>|]/g, '_') + '.wastickers';
+          const url = URL.createObjectURL(archive);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
+        setGalleryStatus(`${groups.length} pack${groups.length === 1 ? '' : 's'} personalizado${groups.length === 1 ? '' : 's'} descargado${groups.length === 1 ? '' : 's'}.`);
+      } catch (error) {
+        console.error('No se pudo crear el pack personalizado:', error);
+        setGalleryStatus(error.message || 'No se pudo crear el pack.', 'warn');
+      } finally {
+        galleryCreate.disabled = false;
+        galleryMore.disabled = false;
+        updateGallerySelection();
+      }
+    }
+
+    document.addEventListener('sticker-gallery-open', () => {
+      if (!galleryItems.length) loadGallery(true);
+    });
+    gallerySearch.addEventListener('input', renderGallery);
+    galleryMore.addEventListener('click', () => loadGallery(galleryMore.textContent === 'Reintentar' && !galleryItems.length));
+    galleryCreate.addEventListener('click', createSelectedPacks);
+
     buildBtn.addEventListener('click', async () => {
       buildBtn.disabled = true;
+      archivedStickerCount = 0;
+      duplicateStickerCount = 0;
+      archiveFailureCount = 0;
+      archiveStopped = false;
+      archiveFailureMessage = '';
 
       const baseTitle = titleIn.value.trim() || 'Mi pack';
       const author = (authorIn.value.replace(/^Autor:\s*/i, '') || 'Yo').trim();
@@ -656,6 +917,23 @@
 
           const entry = { title, filename, url, count: g.files.length, size: blob.size, preview: null };
 
+          for (let i = 0; i < g.files.length; i++) {
+            if (archiveStopped) {
+              archiveFailureCount += g.files.length - i;
+              break;
+            }
+            try {
+              await archiveSticker(g.files[i], title, author, i + 1, g.files.length);
+            } catch (error) {
+              archiveFailureCount++;
+              archiveStopped = true;
+              archiveFailureCount += g.files.length - i - 1;
+              archiveFailureMessage = error.message || 'Error desconocido';
+              console.error('No se pudo archivar un sticker:', error);
+              break;
+            }
+          }
+
           /* Generar vista previa del pack */
           setProgress(`Generando vista previa de «${title}»…`);
           try {
@@ -690,6 +968,9 @@
           : `Listo. ${made.length} packs descargados.`;
         if (small) summary += ` ${small === 1 ? 'Un pack tiene' : 'Algunos packs tienen'} menos de 3 stickers y WhatsApp los rechazará.`;
         if (problems.length) summary += ' Avisos: ' + problems.join(' ');
+        if (archivedStickerCount) summary += ` ${archivedStickerCount} stickers enviados al historial para revisión.`;
+        if (duplicateStickerCount) summary += ` ${duplicateStickerCount} stickers duplicados ya estaban registrados.`;
+        if (archiveFailureCount) summary += ` No se pudieron archivar ${archiveFailureCount} stickers; el pack sí se descargó. ${archiveFailureMessage}`;
 
         pushIn(summary);
         announce(summary);

@@ -786,6 +786,259 @@
   #tool2::-webkit-scrollbar { width: 8px; }
   #tool2::-webkit-scrollbar-thumb { background: #2A3942; border-radius: 4px; }
 
+  /* ============================================================
+     TOOL 3 - GALERIA DE STICKERS
+     ============================================================ */
+
+  #tool3 {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #tool3 .tool-head { flex: 0 0 auto; }
+
+  #tool3 .gallery-board {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 22px 18px 28px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #2A3942 transparent;
+  }
+
+  #tool3 .gallery-intro h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  #tool3 .gallery-intro p {
+    margin: 5px 0 16px;
+    color: var(--ink-muted);
+    font-size: 0.875rem;
+  }
+
+  #tool3 .gallery-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 42px;
+    padding: 0 13px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--surface);
+  }
+
+  #tool3 .gallery-search svg {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    color: var(--ink-muted);
+  }
+
+  #tool3 .gallery-search input {
+    width: 100%;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+  }
+
+  #tool3 .gallery-search:focus-within {
+    box-shadow: inset 0 0 0 1.5px var(--green-ui);
+  }
+
+  #tool3 .gallery-search .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  #tool3 .gallery-selection {
+    margin: 14px 0 10px;
+    color: var(--green-text);
+    font-size: 0.8125rem;
+    font-weight: 700;
+  }
+
+  #tool3 .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(126px, 1fr));
+    gap: 12px;
+  }
+
+  #tool3 .gallery-card {
+    position: relative;
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--surface);
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .12s, background .12s, transform .12s;
+  }
+
+  #tool3 .gallery-card:hover {
+    border-color: var(--green-ui);
+    transform: translateY(-1px);
+  }
+
+  #tool3 .gallery-card[aria-pressed="true"] {
+    border-color: var(--green);
+    background: #10251B;
+    box-shadow: 0 0 0 1px var(--green);
+  }
+
+  #tool3 .gallery-card:focus-visible,
+  #tool3 .gallery-more:focus-visible,
+  #tool3 .gallery-create:focus-visible {
+    outline: 2px solid var(--green-text);
+    outline-offset: 2px;
+  }
+
+  #tool3 .gallery-card img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    border-radius: 8px;
+    background: var(--chat-bg);
+  }
+
+  #tool3 .gallery-card__check {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: grid;
+    width: 24px;
+    height: 24px;
+    place-items: center;
+    border: 1px solid rgba(255,255,255,.45);
+    border-radius: 50%;
+    background: rgba(6,11,14,.82);
+    color: var(--ink);
+    font-size: 0.75rem;
+    font-weight: 800;
+  }
+
+  #tool3 .gallery-card[aria-pressed="true"] .gallery-card__check {
+    border-color: var(--green);
+    background: var(--green);
+    color: var(--green-dark);
+  }
+
+  #tool3 .gallery-card__meta {
+    display: block;
+    margin-top: 7px;
+    overflow: hidden;
+    color: var(--ink-muted);
+    font-size: 0.6875rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #tool3 .gallery-empty {
+    grid-column: 1 / -1;
+    margin: 10px 0;
+    padding: 28px 18px;
+    border: 1px dashed var(--line);
+    border-radius: var(--r-md);
+    color: var(--ink-muted);
+    text-align: center;
+  }
+
+  #tool3 .gallery-more {
+    display: block;
+    margin: 16px auto;
+  }
+
+  #tool3 .gallery-status {
+    margin: 12px 0 0;
+    color: var(--ink-muted);
+    font-size: 0.8125rem;
+  }
+
+  #tool3 .gallery-status.is-warn { color: var(--red-soft); }
+  #tool3 .gallery-status.is-busy { color: var(--ink); }
+
+  #tool3 .gallery-footer {
+    flex: 0 0 auto;
+    width: 100%;
+    padding: 12px max(16px, calc((100% - 948px) / 2)) calc(12px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+    box-shadow: 0 -10px 24px rgba(0,0,0,.18);
+  }
+
+  #tool3 .gallery-footer__fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  #tool3 .gallery-field {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--ink-muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+
+  #tool3 .gallery-field input {
+    width: 100%;
+    min-width: 0;
+    min-height: 36px;
+    padding: 6px 9px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--chat-bg);
+    color: var(--ink);
+    font: inherit;
+    font-size: 0.8125rem;
+  }
+
+  #tool3 .gallery-create {
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: var(--r-md);
+    background: var(--green);
+    color: var(--green-dark);
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  #tool3 .gallery-create:hover:not(:disabled) { background: var(--green-hi); }
+  #tool3 .gallery-create:disabled { cursor: not-allowed; opacity: .45; }
+
+  @media (max-width: 480px) {
+    #tool3 .gallery-board { padding: 16px 12px 20px; }
+    #tool3 .gallery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+    #tool3 .gallery-footer { padding-right: 12px; padding-left: 12px; }
+  }
+
   #tool2 .doodle {
     position: fixed;
     inset: 0;
