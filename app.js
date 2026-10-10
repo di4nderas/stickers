@@ -1,1797 +1,1683 @@
-/**
- * REPRODUCTOR SIMPLE — Lógica Telegram Bot API directa
- * Gestión de Token mediante Interfaz Web (Opción 1) + Almacenamiento local seguro
- */
+/* ============================================================
+     NAVEGACIÓN ENTRE PANTALLAS
+     ============================================================ */
+  (function () {
+    const STORAGE_PREFIX = 'wa-studio-last-';
+    const list = document.getElementById('chatList');
+    const searchInput = document.getElementById('searchInput');
+    const rows = Array.from(document.querySelectorAll('.wa-chat'));
 
-// Estado global de la aplicación
-const state = {
-  token: localStorage.getItem('tg_bot_token') || '',
-  botName: localStorage.getItem('tg_bot_name') || '',
-  audio: new Audio(),
-  standbyAudio: new Audio(),
-  tracks: JSON.parse(localStorage.getItem('tg_cached_tracks') || '[]'),
-  playlists: JSON.parse(localStorage.getItem('tg_playlists') || '[]'),
-  currentIndex: 0,
-  activeView: 'player',
-  selectedArtist: '',
-  selectedPlaylistId: '',
-  playQueueIds: null,
-  pendingTrackIds: new Set(),
-  thumbnailUrls: new Map(),
-  thumbnailRequests: new Map(),
-  thumbnailQueue: [],
-  thumbnailActive: 0,
-  thumbnailObserver: null,
-  isPlaying: false,
-  isShuffle: false,
-  repeatMode: 'none', // 'none' | 'all' | 'one'
-  volume: 0.8,
-  isMuted: false,
-  isSyncing: false,
-  isLoadingTrack: false,
-  isSharing: false,
-  shareController: null,
-  shareFile: null,
-  shareTrack: null,
-  trackLoadId: 0,
-  preloadRequestId: 0,
-  preloadedTrackIndex: null,
-  preloadedTrackId: null,
-  preloadPromise: null,
-  chatId: localStorage.getItem('tg_chat_id') || ''
-};
+    function formatChatTime(ts) {
+      if (!ts) return '';
+      const now = new Date();
+      const d = new Date(ts);
+      const pad = n => String(n).padStart(2, '0');
 
-// Elementos del DOM
-const dom = {
-  playerApp: document.getElementById('playerApp'),
-  playerScreen: document.getElementById('playerScreen'),
-  artistsScreen: document.getElementById('artistsScreen'),
-  favoritesScreen: document.getElementById('favoritesScreen'),
-  playlistsScreen: document.getElementById('playlistsScreen'),
-  searchScreen: document.getElementById('searchScreen'),
-  btnViewPlayer: document.getElementById('btnViewPlayer'),
-  btnViewArtists: document.getElementById('btnViewArtists'),
-  btnViewFavorites: document.getElementById('btnViewFavorites'),
-  btnViewPlaylists: document.getElementById('btnViewPlaylists'),
-  btnViewSearch: document.getElementById('btnViewSearch'),
-  artistCount: document.getElementById('artistCount'),
-  artistList: document.getElementById('artistList'),
-  artistTracksPanel: document.getElementById('artistTracksPanel'),
-  artistTrackTitle: document.getElementById('artistTrackTitle'),
-  artistTrackList: document.getElementById('artistTrackList'),
-  favoriteCount: document.getElementById('favoriteCount'),
-  favoriteTrackList: document.getElementById('favoriteTrackList'),
-  playlistOverview: document.getElementById('playlistOverview'),
-  playlistDetail: document.getElementById('playlistDetail'),
-  playlistHeroArt: document.getElementById('playlistHeroArt'),
-  selectedPlaylistTitle: document.getElementById('selectedPlaylistTitle'),
-  selectedPlaylistCount: document.getElementById('selectedPlaylistCount'),
-  btnPlaylistShuffle: document.getElementById('btnPlaylistShuffle'),
-  btnPlaylistPlay: document.getElementById('btnPlaylistPlay'),
-  playlistTrackList: document.getElementById('playlistTrackList'),
-  searchInput: document.getElementById('searchInput'),
-  searchCount: document.getElementById('searchCount'),
-  searchTrackList: document.getElementById('searchTrackList'),
-  miniPlayer: document.getElementById('miniPlayer'),
-  btnMiniPlayerOpen: document.getElementById('btnMiniPlayerOpen'),
-  miniPlayerCover: document.getElementById('miniPlayerCover'),
-  miniPlayerPlaceholder: document.getElementById('miniPlayerPlaceholder'),
-  miniPlayerTitle: document.getElementById('miniPlayerTitle'),
-  miniPlayerArtist: document.getElementById('miniPlayerArtist'),
-  btnMiniPlayerToggle: document.getElementById('btnMiniPlayerToggle'),
-  btnCreatePlaylist: document.getElementById('btnCreatePlaylist'),
-  btnBackup: document.getElementById('btnBackup'),
-  btnAddTracks: document.getElementById('btnAddTracks'),
-  btnDeletePlaylist: document.getElementById('btnDeletePlaylist'),
-  btnBackArtists: document.getElementById('btnBackArtists'),
-  btnBackPlaylists: document.getElementById('btnBackPlaylists'),
-  playlistModal: document.getElementById('playlistModal'),
-  playlistNameInput: document.getElementById('playlistNameInput'),
-  playlistNameError: document.getElementById('playlistNameError'),
-  btnClosePlaylistModal: document.getElementById('btnClosePlaylistModal'),
-  btnCancelPlaylist: document.getElementById('btnCancelPlaylist'),
-  btnSavePlaylist: document.getElementById('btnSavePlaylist'),
-  addTracksModal: document.getElementById('addTracksModal'),
-  trackPickerSearch: document.getElementById('trackPickerSearch'),
-  trackPickerList: document.getElementById('trackPickerList'),
-  btnCloseAddTracks: document.getElementById('btnCloseAddTracks'),
-  btnCancelAddTracks: document.getElementById('btnCancelAddTracks'),
-  btnConfirmAddTracks: document.getElementById('btnConfirmAddTracks'),
-  botStatusBadge: document.getElementById('botStatusBadge'),
-  botNameLabel: document.getElementById('botNameLabel'),
-  statusDot: document.querySelector('.status-dot'),
-  btnSync: document.getElementById('btnSync'),
-  btnSettings: document.getElementById('btnSettings'),
-  coverImg: document.getElementById('coverImg'),
-  coverPlaceholder: document.getElementById('coverPlaceholder'),
-  trackTitle: document.getElementById('trackTitle'),
-  trackArtist: document.getElementById('trackArtist'),
-  progressBar: document.getElementById('progressBar'),
-  progressFill: document.getElementById('progressFill'),
-  currentTime: document.getElementById('currentTime'),
-  totalTime: document.getElementById('totalTime'),
-  btnShuffle: document.getElementById('btnShuffle'),
-  btnFavorite: document.getElementById('btnFavorite'),
-  btnPrev: document.getElementById('btnPrev'),
-  btnPlay: document.getElementById('btnPlay'),
-  btnNext: document.getElementById('btnNext'),
-  btnRepeat: document.getElementById('btnRepeat'),
-  btnShare: document.getElementById('btnShare'),
-  shareModal: document.getElementById('shareModal'),
-  shareCoverImg: document.getElementById('shareCoverImg'),
-  shareCoverPlaceholder: document.getElementById('shareCoverPlaceholder'),
-  shareTrackTitle: document.getElementById('shareTrackTitle'),
-  shareTrackArtist: document.getElementById('shareTrackArtist'),
-  shareProgressFill: document.getElementById('shareProgressFill'),
-  shareStatus: document.getElementById('shareStatus'),
-  btnCloseShare: document.getElementById('btnCloseShare'),
-  btnCancelShare: document.getElementById('btnCancelShare'),
-  btnShareNow: document.getElementById('btnShareNow'),
-  volumeBtn: document.getElementById('volumeBtn'),
-  playlistCount: document.getElementById('playlistCount'),
-  // Modal de Token
-  tokenModal: document.getElementById('tokenModal'),
-  tokenInput: document.getElementById('tokenInput'),
-  btnSaveToken: document.getElementById('btnSaveToken'),
-  btnCloseModal: document.getElementById('btnCloseModal'),
-  btnToggleTokenVisibility: document.getElementById('btnToggleTokenVisibility'),
-  btnDisconnect: document.getElementById('btnDisconnect'),
-  tokenError: document.getElementById('tokenError'),
-  toast: document.getElementById('toast'),
-  toast: document.getElementById('toast')
-};
-
-// Inicialización
-window.addEventListener('DOMContentLoaded', () => {
-  initAudioListeners();
-  initUIListeners();
-  initModalListeners();
-  initPlaylistListeners();
-  ensureFavoritesPlaylist();
-  initThumbnailObserver();
-
-  // Si no hay token guardado, abrir el modal de configuración de inmediato
-  if (!state.token) {
-    openTokenModal();
-  } else {
-    updateBotStatus(true, state.botName || 'Conectado');
-    renderTracksList();
-    if (state.tracks.length > 0) {
-      loadTrack(0, false);
-    }
-    // Sincronizar automáticamente en segundo plano
-    syncTelegramTracks(false);
-  }
-});
-
-/**
- * ─────────────────────────────────────────────────────────────
- *  INTEGRACIÓN TELEGRAM BOT API
- * ─────────────────────────────────────────────────────────────
- */
-
-// Valida y conecta el bot
-async function connectTelegramBot(inputToken) {
-  const token = inputToken.trim();
-  if (!token || !token.includes(':')) {
-    showTokenError('El formato del token no es válido. Debe ser del tipo 123456789:ABCdef...');
-    return false;
-  }
-
-  showTokenError('');
-  dom.btnSaveToken.disabled = true;
-  dom.btnSaveToken.textContent = 'Verificando...';
-
-  try {
-    // 1. Probar que el bot existe
-    const res = await fetch(`https://api.telegram.org/bot${token}/getMe`);
-    const data = await res.json();
-
-    if (!data.ok) {
-      throw new Error(data.description || 'Token inválido');
-    }
-
-    const botName = data.result.first_name || data.result.username || 'Bot';
-
-    // 2. Limpiar Webhooks para permitir getUpdates
-    await fetch(`https://api.telegram.org/bot${token}/deleteWebhook`).catch(() => {});
-
-    // 3. Guardar en memoria local segura del navegador
-    state.token = token;
-    state.botName = botName;
-    localStorage.setItem('tg_bot_token', token);
-    localStorage.setItem('tg_bot_name', botName);
-
-    updateBotStatus(true, botName);
-    closeTokenModal();
-    showToast(`¡Conectado a ${botName}!`);
-
-    // Sincronizar canciones inmediatamente
-    await syncTelegramTracks(true);
-    return true;
-  } catch (err) {
-    showTokenError(`Error: ${err.message}`);
-    return false;
-  } finally {
-    dom.btnSaveToken.disabled = false;
-    dom.btnSaveToken.textContent = 'Guardar y Conectar';
-  }
-}
-
-// Sincroniza las canciones enviadas al bot
-async function syncTelegramTracks(showFeedback = true) {
-  if (!state.token || state.isSyncing) return;
-
-  state.isSyncing = true;
-  dom.btnSync.classList.add('spinning');
-  if (showFeedback) showToast('Buscando canciones en Telegram...');
-
-  try {
-    const updates = await fetchPendingTelegramUpdates();
-
-    // Capturar chat_id del primer mensaje si aún no lo tenemos
-    if (!state.chatId && updates.length > 0) {
-      const firstMsg = updates.find(u => (u.message || u.channel_post)?.chat?.id);
-      if (firstMsg) {
-        const chatId = String((firstMsg.message || firstMsg.channel_post).chat.id);
-        state.chatId = chatId;
-        localStorage.setItem('tg_chat_id', chatId);
-        console.log('✅ chat_id capturado:', chatId);
+      const sameDay = d.toDateString() === now.toDateString();
+      if (sameDay) {
+        let h = d.getHours();
+        const m = d.getMinutes();
+        const ampm = h >= 12 ? 'p.m.' : 'a.m.';
+        h = h % 12 || 12;
+        return h + ':' + pad(m) + ' ' + ampm;
       }
+
+      const yest = new Date(now); yest.setDate(now.getDate() - 1);
+      if (d.toDateString() === yest.toDateString()) return 'ayer';
+
+      const days = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+      const diffDays = Math.floor((now - d) / 86400000);
+      if (diffDays < 7) return days[d.getDay()];
+
+      if (d.getFullYear() === now.getFullYear()) {
+        return pad(d.getDate()) + '/' + pad(d.getMonth() + 1);
+      }
+      return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
     }
 
-    // Detectar si el usuario reenvió un archivo de backup JSON para restaurar
-    const backupUpdate = updates.find(u => {
-      const doc = (u.message || u.channel_post || {}).document;
-      return doc?.file_name?.startsWith('playlist_backup') && doc.file_name.endsWith('.json');
-    });
-    if (backupUpdate) {
-      const doc = (backupUpdate.message || backupUpdate.channel_post).document;
-      if (showFeedback) showToast('🔁 Backup detectado, restaurando...');
-      await restoreFromBackup(doc.file_id);
+    function renderTimes() {
+      document.querySelectorAll('[data-tool-time]').forEach(el => {
+        const key = el.dataset.toolTime;
+        let ts = null;
+        try { ts = localStorage.getItem(STORAGE_PREFIX + key); } catch (_) {}
+        el.textContent = ts ? formatChatTime(parseInt(ts, 10)) : '';
+      });
     }
 
-    const newTracksMap = new Map();
+    function stampTool(toolId) {
+      try { localStorage.setItem(STORAGE_PREFIX + toolId, String(Date.now())); } catch (_) {}
+      renderTimes();
+    }
 
-    // Mantener las pistas guardadas, incluidas las restauradas desde el backup
-    state.tracks.forEach((t) => newTracksMap.set(t.id, t));
+    function openTool(toolId) {
+      const tool = document.getElementById(toolId);
+      if (!tool) return;
+      document.body.dataset.currentTool = toolId;
+      tool.classList.add('is-open');
+      tool.setAttribute('aria-hidden', 'false');
+      tool.scrollTop = 0;
+      stampTool(toolId);
+    }
 
-    let addedCount = 0;
-    const newlyAdded = [];
-    const AUDIO_EXTS = ['.mp3', '.flac', '.ogg', '.m4a', '.wav'];
+    function closeTool(toolId) {
+      const tool = document.getElementById(toolId);
+      if (!tool) return;
+      tool.classList.remove('is-open');
+      tool.setAttribute('aria-hidden', 'true');
+      document.body.dataset.currentTool = '';
+      const row = rows.find(r => r.dataset.tool === toolId);
+      if (row) row.focus({ preventScroll: true });
+    }
 
-    updates.forEach((u) => {
-      const msg = u.message || u.channel_post || {};
-      const audio = msg.audio;
-      const doc = msg.document;
-
-      // Caso 1: Archivo de audio nativo de Telegram
-      if (audio && audio.file_id) {
-        if (!newTracksMap.has(audio.file_id)) {
-          const thumb = audio.thumbnail || audio.thumb;
-          const track = {
-            id: audio.file_id,
-            name: audio.title || audio.file_name || 'Sin título',
-            artist: audio.performer || 'Desconocido',
-            duration: audio.duration || 0,
-            thumb_id: thumb ? thumb.file_id : null,
-            file_size: audio.file_size || 0,
-            file_name: audio.file_name || null,
-            mime_type: audio.mime_type || null
-          };
-          newTracksMap.set(audio.file_id, track);
-          newlyAdded.push(track);
-          addedCount++;
+    rows.forEach(row => {
+      row.addEventListener('click', () => openTool(row.dataset.tool));
+      row.addEventListener('keydown', e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openTool(row.dataset.tool);
         }
-      }
-      // Caso 2: Documento de audio (MP3, FLAC, OGG, M4A, WAV)
-      else if (doc && doc.file_name && AUDIO_EXTS.some(ext => doc.file_name.toLowerCase().endsWith(ext))) {
-        if (!newTracksMap.has(doc.file_id)) {
-          const thumb = doc.thumbnail || doc.thumb;
-          const cleanName = doc.file_name.replace(/\.[^/.]+$/, '');
-          const track = {
-            id: doc.file_id,
-            name: cleanName,
-            artist: 'Telegram',
-            duration: 0,
-            thumb_id: thumb ? thumb.file_id : null,
-            file_size: doc.file_size || 0,
-            file_name: doc.file_name,
-            mime_type: doc.mime_type || null
-          };
-          newTracksMap.set(doc.file_id, track);
-          newlyAdded.push(track);
-          addedCount++;
-        }
-      }
+      });
     });
 
-    state.tracks = Array.from(newTracksMap.values());
-    localStorage.setItem('tg_cached_tracks', JSON.stringify(state.tracks));
+    document.querySelectorAll('[data-close]').forEach(btn => {
+      btn.addEventListener('click', () => closeTool(btn.dataset.close));
+    });
 
-    // Enviar backup completo al chat del bot de Telegram
-    if (newlyAdded.length > 0 && state.chatId) sendBackupToTelegram();
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      const current = document.body.dataset.currentTool;
+      if (current) closeTool(current);
+    });
 
-    renderTracksList();
+    if (searchInput) {
+      searchInput.addEventListener('input', e => {
+        const q = e.target.value
+          .trim()
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
 
-    if (state.tracks.length > 0 && dom.trackTitle.textContent === 'Esperando bot...') {
-      loadTrack(0, false);
+        rows.forEach(row => {
+          if (!q) { row.hidden = false; return; }
+          const name = row.querySelector('.wa-chat__name').textContent
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+          const last = row.querySelector('.wa-chat__last').textContent
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+          row.hidden = !(name.includes(q) || last.includes(q));
+        });
+      });
     }
 
-    if (showFeedback) {
-      if (addedCount > 0) {
-        showToast(`+${countLabel(addedCount, 'canción nueva agregada', 'canciones nuevas agregadas')}`);
+    renderTimes();
+  })();
+
+  /* ============================================================
+     TOOL 1 - CREADOR DE PACKS .wastickers
+     ============================================================ */
+  (function () {
+    const SIZE = 512, MAX_PER_PACK = 30;
+    const ANIM_LIMIT = 490 * 1024, STATIC_LIMIT = 98 * 1024, MAX_MS = 9800;
+
+    const $ = id => document.getElementById('t1-' + id);
+    const fileInput = $('fileInput');
+    const buildBtn  = $('buildBtn');
+    const chatBody  = $('chatBody');
+    const field     = $('field');
+    const attach    = $('attach');
+    const avatar    = $('avatar');
+    const titleIn   = $('title');
+    const authorIn  = $('author');
+    const moreBtn   = $('moreBtn');
+    const menu      = $('menu');
+    const live      = $('live');
+
+    let items = [];
+    let progEl = null;
+
+    const tick = () => new Promise(r => setTimeout(r));
+
+    function announce(text) { live.textContent = text; }
+
+    function scrollToEnd() {
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    /* ---------- Burbujas ---------- */
+
+    function pushIn(text) {
+      const el = document.createElement('div');
+      el.className = 'msg msg--in';
+      el.innerHTML = '<p class="msg__text"></p>';
+      el.querySelector('.msg__text').textContent = text;
+      chatBody.appendChild(el);
+      scrollToEnd();
+      return el;
+    }
+
+    function pushErr(text) {
+      const el = document.createElement('div');
+      el.className = 'msg msg--err';
+      el.innerHTML = '<p class="msg__text"></p>';
+      el.querySelector('.msg__text').textContent = text;
+      chatBody.appendChild(el);
+      scrollToEnd();
+      return el;
+    }
+
+    function pushOutFile(it) {
+      const el = document.createElement('div');
+      el.className = 'msg msg--out';
+      el.innerHTML =
+        '<img class="msg__img" alt="">' +
+        '<p class="msg__title"></p>' +
+        '<p class="msg__meta"><span data-size></span></p>';
+      el.querySelector('.msg__img').src = it.url;
+      el.querySelector('.msg__title').textContent = it.file.name;
+      it.msgEl = el;
+      it.metaEl = el.querySelector('[data-size]');
+
+      const kb = Math.max(1, Math.round(it.file.size / 1024));
+      it.metaEl.textContent = it.animated
+        ? `${kb} KB, animado, ${it.frames} fotogramas`
+        : `${kb} KB, estático`;
+
+      chatBody.appendChild(el);
+      scrollToEnd();
+    }
+
+    function setProgress(text) {
+      if (!progEl) {
+        progEl = document.createElement('div');
+        progEl.className = 'msg msg--prog';
+        progEl.innerHTML = '<p class="msg__text"></p>';
+        chatBody.appendChild(progEl);
+      }
+      progEl.querySelector('.msg__text').textContent = text;
+      scrollToEnd();
+    }
+
+    function clearProgress() {
+      if (progEl) { progEl.remove(); progEl = null; }
+    }
+
+    function mimeOf(file) {
+      if (file.type) return file.type;
+      const ext = file.name.split('.').pop().toLowerCase();
+      return { gif:'image/gif', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg' }[ext] || 'image/webp';
+    }
+
+    async function openDecoder(file) {
+      const d = new ImageDecoder({ data: await file.arrayBuffer(), type: mimeOf(file) });
+      await d.tracks.ready; await d.completed;
+      return d;
+    }
+
+    function updateFieldLabel() {
+      if (!items.length) { field.textContent = 'Añade tus imágenes…'; return; }
+      const a = items.filter(i => i.animated).length;
+      const s = items.length - a;
+      let msg = items.length === 1 ? '1 archivo' : `${items.length} archivos`;
+      if (a && s) msg += ` (${a} animados, ${s} estáticos)`;
+      field.textContent = msg + '. Añade más…';
+    }
+
+    function updateAvatar() {
+      const first = items.find(i => i.url);
+      if (first) {
+        avatar.style.backgroundImage = `url("${first.url}")`;
+        avatar.innerHTML = '';
       } else {
-        showToast(`Lista al día (${countLabel(state.tracks.length, 'canción', 'canciones')})`);
+        avatar.style.backgroundImage = '';
+        avatar.innerHTML =
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+          '<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"/></svg>';
       }
     }
-  } catch (err) {
-    console.error('Error al sincronizar:', err);
-    if (showFeedback) showToast('Error al sincronizar con Telegram');
-  } finally {
-    state.isSyncing = false;
-    dom.btnSync.classList.remove('spinning');
-  }
-}
 
-async function fetchPendingTelegramUpdates() {
-  const updates = [];
-  let offset = null;
+    attach.addEventListener('click', () => fileInput.click());
+    field.addEventListener('click', () => fileInput.click());
 
-  for (let page = 0; page < 50; page++) {
-    const offsetQuery = offset === null ? '' : `&offset=${offset}`;
-    const res = await fetch(`https://api.telegram.org/bot${state.token}/getUpdates?limit=100${offsetQuery}`);
-    const data = await res.json();
-    if (!data.ok) {
-      if (updates.length === 0) throw new Error(data.description || 'Error al obtener mensajes');
-      console.warn('Sincronización parcial de Telegram:', data.description);
-      break;
-    }
+    let dragDepth = 0;
+    chatBody.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; chatBody.classList.add('is-over'); });
+    chatBody.addEventListener('dragover', e => e.preventDefault());
+    chatBody.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; chatBody.classList.remove('is-over'); } });
+    chatBody.addEventListener('drop', e => {
+      e.preventDefault(); dragDepth = 0; chatBody.classList.remove('is-over');
+      const files = Array.from(e.dataTransfer?.files || []);
+      if (files.length) addFiles(files);
+    });
+    window.addEventListener('dragover', e => e.preventDefault());
+    window.addEventListener('drop', e => e.preventDefault());
 
-    const batch = data.result || [];
-    updates.push(...batch);
-    if (batch.length < 100) break;
+    fileInput.addEventListener('change', e => {
+      const files = Array.from(e.target.files || []);
+      if (files.length) addFiles(files);
+      fileInput.value = '';
+    });
 
-    const lastUpdateId = batch[batch.length - 1]?.update_id;
-    if (!Number.isFinite(lastUpdateId)) break;
-    offset = lastUpdateId + 1;
-  }
-
-  return updates;
-}
-
-// Obtiene la URL de streaming directo de un archivo en Telegram
-async function getTelegramFileUrl(fileId) {
-  const file = await getTelegramFileInfo(fileId);
-  return file.url;
-}
-
-async function getTelegramFileInfo(fileId, signal) {
-  const res = await fetch(`https://api.telegram.org/bot${state.token}/getFile?file_id=${encodeURIComponent(fileId)}`, { signal });
-  const data = await res.json();
-  if (data.ok && data.result.file_path) {
-    return {
-      url: `https://api.telegram.org/file/bot${state.token}/${data.result.file_path}`,
-      filePath: data.result.file_path,
-      fileSize: Number(data.result.file_size) || 0
-    };
-  }
-  throw new Error('No se pudo obtener el archivo de Telegram');
-}
-
-const TELEGRAM_FILE_DOWNLOAD_LIMIT = 20_000_000;
-
-async function shareCurrentTrack() {
-  if (state.isSharing) return;
-  if (!state.token) {
-    openTokenModal();
-    return;
-  }
-
-  const track = state.tracks[state.currentIndex];
-  if (!track) {
-    showToast('Selecciona una canción para compartir');
-    return;
-  }
-  if (track.file_size > TELEGRAM_FILE_DOWNLOAD_LIMIT) {
-    showToast('Telegram no permite descargar archivos mayores de 20 MB desde el bot');
-    return;
-  }
-
-  const controller = new AbortController();
-  state.shareController = controller;
-  state.shareTrack = track;
-  state.shareFile = null;
-  state.isSharing = true;
-  dom.shareTrackTitle.textContent = track.name;
-  dom.shareTrackArtist.textContent = track.artist || '';
-  dom.shareCoverImg.classList.toggle('active', dom.coverImg.classList.contains('active'));
-  dom.shareCoverPlaceholder.classList.toggle('hidden', dom.coverImg.classList.contains('active'));
-  if (dom.coverImg.classList.contains('active')) dom.shareCoverImg.src = dom.coverImg.src;
-  dom.shareProgressFill.style.width = '0%';
-  dom.shareProgressFill.classList.add('indeterminate');
-  dom.shareStatus.textContent = 'Preparando descarga…';
-  dom.btnShareNow.classList.add('hidden');
-  dom.btnShareNow.textContent = 'Compartir ahora';
-  dom.shareModal.classList.remove('hidden');
-
-  try {
-    const fileInfo = await getTelegramFileInfo(track.id, controller.signal);
-    if (fileInfo.fileSize > TELEGRAM_FILE_DOWNLOAD_LIMIT) {
-      throw new Error('Este archivo supera el límite de descarga de Telegram (20 MB)');
-    }
-
-    dom.shareStatus.textContent = 'Descargando canción…';
-    const response = await fetch(fileInfo.url, { signal: controller.signal });
-    if (!response.ok) throw new Error('Telegram no pudo entregar el archivo');
-
-    const contentLength = Number(response.headers.get('Content-Length')) || fileInfo.fileSize;
-    if (contentLength > TELEGRAM_FILE_DOWNLOAD_LIMIT) {
-      throw new Error('Este archivo supera el límite de descarga de Telegram (20 MB)');
-    }
-
-    let blob;
-    if (response.body?.getReader) {
-      const reader = response.body.getReader();
-      const chunks = [];
-      let received = 0;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        received += value.length;
-        if (received > TELEGRAM_FILE_DOWNLOAD_LIMIT) {
-          await reader.cancel();
-          throw new Error('Este archivo supera el límite de descarga de Telegram (20 MB)');
-        }
-        chunks.push(value);
-        if (contentLength > 0) {
-          const progress = Math.min(Math.round((received / contentLength) * 100), 100);
-          dom.shareProgressFill.classList.remove('indeterminate');
-          dom.shareProgressFill.style.width = `${progress}%`;
-          dom.shareStatus.textContent = `Descargando canción… ${progress}%`;
-        }
+    async function addFiles(files) {
+      if (!('ImageDecoder' in window)) {
+        pushErr('Este navegador no puede leer WebP animados. Usa Chrome o Edge actualizado.');
+        return;
       }
-      blob = new Blob(chunks, { type: response.headers.get('Content-Type') || 'application/octet-stream' });
-    } else {
-      blob = await response.blob();
-      if (blob.size > TELEGRAM_FILE_DOWNLOAD_LIMIT) {
-        throw new Error('Este archivo supera el límite de descarga de Telegram (20 MB)');
+
+      for (const file of files) {
+        const url = URL.createObjectURL(file);
+        let frames = 1;
+        try {
+          const d = await openDecoder(file);
+          frames = d.tracks.selectedTrack.frameCount;
+          d.close();
+        } catch (_) {}
+        const it = { file, url, frames, animated: frames > 1, out: null };
+        items.push(it);
+        pushOutFile(it);
       }
-      dom.shareProgressFill.classList.remove('indeterminate');
-      dom.shareProgressFill.style.width = '100%';
+
+      updateFieldLabel();
+      updateAvatar();
+      buildBtn.disabled = items.length === 0;
+
+      const a = items.filter(i => i.animated).length;
+      const s = items.length - a;
+      if (a && s && !items._warned) {
+        items._warned = true;
+        pushIn('Tienes animados y estáticos a la vez. WhatsApp no los mezcla en un mismo pack, así que se crearán packs separados.');
+      }
+
+      announce(`${items.length} archivos añadidos.`);
     }
 
-    if (state.shareController !== controller) return;
-    const file = await createShareFile(blob, fileInfo.filePath, track);
-    state.shareFile = file;
-    dom.shareProgressFill.classList.remove('indeterminate');
-    dom.shareProgressFill.style.width = '100%';
-    dom.shareStatus.textContent = 'Descarga lista. Abriendo opciones para compartir…';
+    const work = document.createElement('canvas');
+    work.width = work.height = SIZE;
+    const wctx = work.getContext('2d', { willReadFrequently: true });
 
-    if (canShareFile(file)) {
+    function drawContain(src, w, h) {
+      wctx.clearRect(0, 0, SIZE, SIZE);
+      const s = Math.min(SIZE / w, SIZE / h);
+      wctx.drawImage(src, (SIZE - w * s) / 2, (SIZE - h * s) / 2, w * s, h * s);
+    }
+
+    function toWebpBlob(q) {
+      return new Promise((res, rej) => work.toBlob(
+        b => (b && b.type === 'image/webp') ? res(b) : rej(new Error('Este navegador no puede codificar WebP. Usa Chrome o Edge.')),
+        'image/webp', q));
+    }
+
+    /* ---------- Vista previa del pack ---------- */
+
+    function loadImage(src) {
+      return new Promise((res, rej) => {
+        const img = new Image();
+        img.onload = () => res(img);
+        img.onerror = rej;
+        img.src = src;
+      });
+    }
+
+    function makeDoodleDataUrl() {
+      const svg = [
+        '<svg xmlns="http://www.w3.org/2000/svg" width="260" height="260" viewBox="0 0 260 260">',
+        '<rect width="260" height="260" fill="#0B141A"/>',
+        '<g fill="none" stroke="#FFFFFF" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" opacity="0.07">',
+        '<g transform="translate(16 18)"><path d="M12 21C7 17.5 2 13.5 2 8.5A5.5 5.5 0 0 1 12 5.5 5.5 5.5 0 0 1 22 8.5c0 5-5 9-10 12.5z"/></g>',
+        '<g transform="translate(148 10)"><path d="M11 .8 13.8 8 21.5 8.6l-6 5 2 7.6L11 17.2.5 21.2l2-7.6-6-5L4.2 8z"/></g>',
+        '<g transform="translate(90 26)"><rect x="0" y="4" width="26" height="18" rx="3.5"/><path d="M8 4l2-3h6l2 3"/><circle cx="13" cy="13" r="5"/></g>',
+        '<g transform="translate(212 22)"><circle cx="12" cy="12" r="11"/><circle cx="8.2" cy="9.5" r="1.1" fill="#FFFFFF" stroke="none"/><circle cx="15.8" cy="9.5" r="1.1" fill="#FFFFFF" stroke="none"/><path d="M6.5 14.5a6.5 6.5 0 0 0 11 0"/></g>',
+        '<g transform="translate(34 82)"><path d="M0 7a6 6 0 0 1 6-6h18a6 6 0 0 1 6 6v9a6 6 0 0 1-6 6H11l-8 6v-6H6a6 6 0 0 1-6-6z"/></g>',
+        '<g transform="translate(120 96)"><ellipse cx="4" cy="20" rx="4.5" ry="3.5"/><ellipse cx="17" cy="17.5" rx="4.5" ry="3.5"/><path d="M8.5 20V3l13-3v17"/></g>',
+        '<g transform="translate(198 92)"><path d="M15 2A11 11 0 1 0 15 24 9 9 0 0 1 15 2z"/></g>',
+        '<g transform="translate(28 162)"><circle cx="12" cy="6" r="4"/><circle cx="6" cy="14" r="4"/><circle cx="18" cy="14" r="4"/><circle cx="10" cy="22" r="4"/><circle cx="12" cy="14" r="2.2" fill="#FFFFFF" stroke="none"/></g>',
+        '<g transform="translate(106 172)"><path d="M2 8h20v9a6 6 0 0 1-6 6H8a6 6 0 0 1-6-6z"/><path d="M22 11h3a4 4 0 0 1 0 8h-3"/><path d="M7 1.5v3M12 1.5v3M17 1.5v3" opacity=".8"/></g>',
+        '<g transform="translate(180 174)"><path d="M13 0 2 15h8l-2 11L22 10h-8z"/></g>',
+        '<g transform="translate(48 208)"><path d="M0 2 22 2 11 22z"/><circle cx="8" cy="8" r="1.2" fill="#FFFFFF" stroke="none"/><circle cx="15" cy="8" r="1.2" fill="#FFFFFF" stroke="none"/><circle cx="11" cy="14" r="1.2" fill="#FFFFFF" stroke="none"/></g>',
+        '<g transform="translate(158 200)"><path d="M3 8 2 1l6 3h8l6-3-1 7v6a9 9 0 0 1-18 0z"/><circle cx="8" cy="10" r="1" fill="#FFFFFF" stroke="none"/><circle cx="16" cy="10" r="1" fill="#FFFFFF" stroke="none"/><path d="M10 14.5h4M4 12l-3-1M4 15H1M20 12l3-1M20 15h3"/></g>',
+        '</g></svg>'
+      ].join('');
+      return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    }
+
+    async function generatePreview(stickerBlobs) {
+      const count = stickerBlobs.length;
+      if (!count) return null;
+
+      const CELL = 200;
+      const GAP = 16;
+      const PADDING = 32;
+      const COLS = Math.min(6, Math.max(1, Math.ceil(Math.sqrt(count * 1.2))));
+      const ROWS = Math.ceil(count / COLS);
+
+      const W = PADDING * 2 + COLS * CELL + (COLS - 1) * GAP;
+      const H = PADDING * 2 + ROWS * CELL + (ROWS - 1) * GAP;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      ctx.fillStyle = '#0B141A';
+      ctx.fillRect(0, 0, W, H);
+
       try {
-        await shareDownloadedFile();
+        const img = await loadImage(makeDoodleDataUrl());
+        const pat = ctx.createPattern(img, 'repeat');
+        if (pat) {
+          ctx.fillStyle = pat;
+          ctx.fillRect(0, 0, W, H);
+        }
+      } catch (e) {
+        console.warn('No se pudo cargar el fondo de garabatos:', e);
+      }
+
+      const bitmaps = await Promise.all(stickerBlobs.map(async b => {
+        try { return await createImageBitmap(b); }
+        catch (_) { return null; }
+      }));
+
+      for (let i = 0; i < count; i++) {
+        const col = i % COLS;
+        const row = (i / COLS) | 0;
+        const x = PADDING + col * (CELL + GAP);
+        const y = PADDING + row * (CELL + GAP);
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.025)';
+        ctx.beginPath();
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(x, y, CELL, CELL, 16);
+        } else {
+          const r = 16;
+          ctx.moveTo(x + r, y);
+          ctx.arcTo(x + CELL, y, x + CELL, y + CELL, r);
+          ctx.arcTo(x + CELL, y + CELL, x, y + CELL, r);
+          ctx.arcTo(x, y + CELL, x, y, r);
+          ctx.arcTo(x, y, x + CELL, y, r);
+          ctx.closePath();
+        }
+        ctx.fill();
+
+        const bmp = bitmaps[i];
+        if (!bmp) continue;
+
+        const scale = Math.min(CELL / bmp.width, CELL / bmp.height) * 0.86;
+        const iw = bmp.width * scale;
+        const ih = bmp.height * scale;
+        ctx.drawImage(bmp, x + (CELL - iw) / 2, y + (CELL - ih) / 2, iw, ih);
+        bmp.close();
+      }
+
+      return new Promise(res => canvas.toBlob(res, 'image/png'));
+    }
+
+    /* ---------- Muxer WebP animado ---------- */
+
+    const u24 = v => [v & 255, (v >> 8) & 255, (v >> 16) & 255];
+    const u32 = v => [v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255];
+    const tag4 = s => [...s].map(c => c.charCodeAt(0));
+
+    function mk(tag, payload) {
+      const pad = payload.length & 1;
+      const out = new Uint8Array(8 + payload.length + pad);
+      out.set(tag4(tag), 0); out.set(u32(payload.length), 4); out.set(payload, 8);
+      return out;
+    }
+    function concat(parts) {
+      const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+      let o = 0; for (const p of parts) { out.set(p, o); o += p.length; }
+      return out;
+    }
+    function imageChunks(buf) {
+      const u8 = new Uint8Array(buf), dv = new DataView(buf), parts = [];
+      let off = 12;
+      while (off + 8 <= u8.length) {
+        const tag = String.fromCharCode(...u8.subarray(off, off + 4));
+        const sz = dv.getUint32(off + 4, true);
+        const end = Math.min(off + 8 + sz + (sz & 1), u8.length);
+        if (tag === 'ALPH' || tag === 'VP8 ' || tag === 'VP8L') parts.push(u8.subarray(off, end));
+        off = end;
+      }
+      return concat(parts);
+    }
+    function muxAnimated(frames) {
+      const vp8x = mk('VP8X', new Uint8Array([0x12, 0, 0, 0, ...u24(SIZE - 1), ...u24(SIZE - 1)]));
+      const anim = mk('ANIM', new Uint8Array([0, 0, 0, 0, 0, 0]));
+      const anmf = frames.map(f => mk('ANMF', concat([
+        new Uint8Array([...u24(0), ...u24(0), ...u24(SIZE - 1), ...u24(SIZE - 1), ...u24(f.duration), 0x03]),
+        f.data
+      ])));
+      const body = concat([new Uint8Array(tag4('WEBP')), vp8x, anim, ...anmf]);
+      return new Blob([concat([new Uint8Array(tag4('RIFF')), new Uint8Array(u32(body.length)), body])], { type: 'image/webp' });
+    }
+
+    /* ---------- Reencodado ---------- */
+
+    async function encodeAnimated(file, label) {
+      const d = await openDecoder(file);
+      const n = d.tracks.selectedTrack.frameCount;
+      const bmps = [], durs = []; let total = 0, truncated = false;
+
+      for (let i = 0; i < n; i++) {
+        const { image } = await d.decode({ frameIndex: i });
+        const dur = Math.max(20, Math.round((image.duration || 100000) / 1000));
+        if (total + dur > MAX_MS) { image.close(); truncated = true; break; }
+        total += dur;
+        drawContain(image, image.displayWidth, image.displayHeight);
+        bmps.push(await createImageBitmap(work)); durs.push(dur);
+        image.close();
+        if (i % 5 === 0) await tick();
+      }
+      d.close();
+
+      let best = null;
+      for (const step of [1, 2, 3]) {
+        for (const q of [0.8, 0.6, 0.4, 0.25]) {
+          setProgress(`${label}\nProbando calidad ${Math.round(q * 100)} %, uno de cada ${step} fotogramas…`);
+          const frames = [];
+          for (let i = 0; i < bmps.length; i += step) {
+            wctx.clearRect(0, 0, SIZE, SIZE);
+            wctx.drawImage(bmps[i], 0, 0);
+            const dur = durs.slice(i, i + step).reduce((a, b) => a + b, 0);
+            frames.push({ data: imageChunks(await (await toWebpBlob(q)).arrayBuffer()), duration: dur });
+            if (frames.length % 5 === 0) await tick();
+          }
+          const blob = muxAnimated(frames);
+          if (!best || blob.size < best.size) best = blob;
+          if (blob.size <= ANIM_LIMIT) { bmps.forEach(b => b.close()); return { blob, frames: frames.length, truncated }; }
+        }
+      }
+      bmps.forEach(b => b.close());
+      return { blob: best, frames: null, truncated, tooBig: true };
+    }
+
+    async function encodeStatic(file) {
+      const d = await openDecoder(file);
+      const { image } = await d.decode({ frameIndex: 0 });
+      drawContain(image, image.displayWidth, image.displayHeight);
+      image.close(); d.close();
+      let best = null;
+      for (const q of [0.9, 0.75, 0.6, 0.45, 0.3, 0.15]) {
+        const blob = await toWebpBlob(q);
+        if (!best || blob.size < best.size) best = blob;
+        if (blob.size <= STATIC_LIMIT) return { blob };
+      }
+      return { blob: best, tooBig: true };
+    }
+
+    function makeTray(blob) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob), img = new Image();
+        img.onload = () => {
+          const c = document.createElement('canvas'); c.width = c.height = 96;
+          c.getContext('2d').drawImage(img, 0, 0, 96, 96);
+          URL.revokeObjectURL(url);
+          c.toBlob(b => b ? resolve(b) : reject(new Error('No se pudo crear el ícono')), 'image/png');
+        };
+        img.onerror = () => reject(new Error('No se pudo crear el ícono'));
+        img.src = url;
+      });
+    }
+
+    function chunk(arr) {
+      const out = [];
+      for (let i = 0; i < arr.length; i += MAX_PER_PACK) out.push(arr.slice(i, i + MAX_PER_PACK));
+      return out;
+    }
+
+    function pushResult({ title, url, filename, count, size }) {
+      const el = document.createElement('div');
+      el.className = 'msg msg--in';
+      el.innerHTML =
+        '<div class="msg__file">' +
+          '<div class="msg__file-icon" aria-hidden="true">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+              '<path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/>' +
+              '<path d="M14 2v5h5"/>' +
+            '</svg>' +
+          '</div>' +
+          '<div class="msg__file-text">' +
+            '<p class="msg__title"></p>' +
+            '<p class="msg__meta"><span></span></p>' +
+          '</div>' +
+        '</div>' +
+        '<a class="msg__dl" download>Descargar otra vez</a>';
+      el.querySelector('.msg__title').textContent = title;
+      el.querySelector('.msg__meta span').textContent =
+        `${count} ${count === 1 ? 'sticker' : 'stickers'}, ${Math.round(size / 1024)} KB`;
+      const a = el.querySelector('.msg__dl');
+      a.href = url; a.download = filename;
+      chatBody.appendChild(el);
+      scrollToEnd();
+    }
+
+    function pushPreviewResult(m) {
+      const el = document.createElement('div');
+      el.className = 'msg msg--in';
+      el.innerHTML =
+        '<div class="msg__file">' +
+          '<div class="msg__file-icon msg__file-icon--preview" aria-hidden="true">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+              '<rect x="3" y="3" width="18" height="18" rx="2"/>' +
+              '<circle cx="8.5" cy="8.5" r="1.5"/>' +
+              '<path d="M21 15l-5-5L5 21"/>' +
+            '</svg>' +
+          '</div>' +
+          '<div class="msg__file-text">' +
+            '<p class="msg__title"></p>' +
+            '<p class="msg__meta"><span></span></p>' +
+          '</div>' +
+        '</div>' +
+        '<a class="msg__dl" download>Descargar vista previa</a>';
+      el.querySelector('.msg__title').textContent = m.preview.filename;
+      el.querySelector('.msg__meta span').textContent =
+        `Vista previa · ${m.count} ${m.count === 1 ? 'sticker' : 'stickers'} · ${Math.round(m.preview.size / 1024)} KB`;
+      const a = el.querySelector('.msg__dl');
+      a.href = m.preview.url;
+      a.download = m.preview.filename;
+      chatBody.appendChild(el);
+      scrollToEnd();
+    }
+
+    buildBtn.addEventListener('click', async () => {
+      buildBtn.disabled = true;
+
+      const baseTitle = titleIn.value.trim() || 'Mi pack';
+      const author = (authorIn.value.replace(/^Autor:\s*/i, '') || 'Yo').trim();
+      authorIn.value = 'Autor: ' + author;
+
+      const problems = [];
+
+      try {
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i];
+          const label = `Preparando ${it.file.name} (${i + 1} de ${items.length})`;
+          setProgress(label);
+
+          let r;
+          try {
+            r = it.animated ? await encodeAnimated(it.file, label) : await encodeStatic(it.file);
+          } catch (err) {
+            console.error(it.file.name, err);
+            if (it.metaEl) {
+              it.metaEl.textContent = 'No se pudo leer';
+              it.metaEl.classList.add('msg__meta--warn');
+            }
+            problems.push(`${it.file.name} no se pudo procesar y se omitió.`);
+            continue;
+          }
+
+          it.out = r.blob;
+          const parts = [`${Math.round(r.blob.size / 1024)} KB`];
+          if (r.truncated) parts.push('recortado a 10 s');
+          if (r.tooBig) parts.push('sigue pesando demasiado');
+          if (it.metaEl) {
+            it.metaEl.textContent = parts.join(', ');
+            if (r.truncated || r.tooBig) it.metaEl.classList.add('msg__meta--warn');
+          }
+          if (r.truncated || r.tooBig) {
+            problems.push(r.tooBig
+              ? `${it.file.name} sigue por encima del límite.`
+              : `${it.file.name} se recortó a 10 segundos.`);
+          }
+          await tick();
+        }
+
+        const ok = items.filter(i => i.out);
+        if (!ok.length) throw new Error('Ningún archivo se pudo procesar.');
+
+        const groups = [
+          ...chunk(ok.filter(i => i.animated)).map(c => ({ kind: 'animados', files: c })),
+          ...chunk(ok.filter(i => !i.animated)).map(c => ({ kind: 'estáticos', files: c }))
+        ];
+        const hasBoth = ok.some(i => i.animated) && ok.some(i => !i.animated);
+        let stamp = Math.floor(Date.now() / 1000);
+        const made = [];
+
+        for (let p = 0; p < groups.length; p++) {
+          const g = groups[p];
+          const title = baseTitle + (groups.length > 1 ? ` ${p + 1}` : '') + (hasBoth ? ` (${g.kind})` : '');
+          setProgress(`Empaquetando «${title}»…`);
+
+          const zip = new JSZip();
+          zip.file('author.txt', author);
+          zip.file('title.txt', title);
+          for (const it of g.files) zip.file((stamp++) + '.webp', await it.out.arrayBuffer(), { compression: 'STORE' });
+          zip.file((stamp++) + '.png', await makeTray(g.files[0].out), { compression: 'STORE' });
+
+          const blob = await zip.generateAsync({ type: 'blob' });
+          const filename = title.replace(/[\\/:*?"<>|]/g, '_') + '.wastickers';
+          const url = URL.createObjectURL(blob);
+
+          const a = document.createElement('a');
+          a.href = url; a.download = filename;
+          document.body.appendChild(a); a.click(); a.remove();
+
+          const entry = { title, filename, url, count: g.files.length, size: blob.size, preview: null };
+
+          /* Generar vista previa del pack */
+          setProgress(`Generando vista previa de «${title}»…`);
+          try {
+            const previewBlob = await generatePreview(g.files.map(f => f.out));
+            if (previewBlob) {
+              const previewFilename = title.replace(/[\\/:*?"<>|]/g, '_') + '-vista-previa.png';
+              entry.preview = {
+                filename: previewFilename,
+                url: URL.createObjectURL(previewBlob),
+                size: previewBlob.size
+              };
+            }
+          } catch (err) {
+            console.warn('No se pudo generar la vista previa:', err);
+          }
+
+          made.push(entry);
+          await new Promise(r => setTimeout(r, 800));
+        }
+
+        clearProgress();
+
+        /* Publicar en el chat: pack primero, luego su vista previa */
+        for (const m of made) {
+          pushResult(m);
+          if (m.preview) pushPreviewResult(m);
+        }
+
+        const small = groups.filter(g => g.files.length < 3).length;
+        let summary = made.length === 1
+          ? 'Listo. 1 pack descargado.'
+          : `Listo. ${made.length} packs descargados.`;
+        if (small) summary += ` ${small === 1 ? 'Un pack tiene' : 'Algunos packs tienen'} menos de 3 stickers y WhatsApp los rechazará.`;
+        if (problems.length) summary += ' Avisos: ' + problems.join(' ');
+
+        pushIn(summary);
+        announce(summary);
       } catch (err) {
-        showShareFallback(err);
+        console.error(err);
+        clearProgress();
+        pushErr(err.message);
+        announce('Error: ' + err.message);
       }
-    } else {
-      dom.shareStatus.textContent = 'Archivo listo. Este navegador no ofrece compartir archivos directamente.';
-      dom.btnShareNow.innerHTML = '<i class="fas fa-download"></i> Descargar archivo';
-      dom.btnShareNow.classList.remove('hidden');
+
+      buildBtn.disabled = items.length === 0;
+    });
+
+    moreBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = menu.hidden;
+      menu.hidden = !open;
+      moreBtn.setAttribute('aria-expanded', String(open));
+    });
+
+    document.addEventListener('click', () => {
+      menu.hidden = true;
+      moreBtn.setAttribute('aria-expanded', 'false');
+    });
+
+    menu.addEventListener('click', e => e.stopPropagation());
+
+    $('clearList').addEventListener('click', () => {
+      items.forEach(i => URL.revokeObjectURL(i.url));
+      items = [];
+      chatBody.querySelectorAll('.msg--out, .msg--prog, .msg--err').forEach(el => el.remove());
+      chatBody.querySelectorAll('.msg__meta--warn').forEach(el => el.classList.remove('msg__meta--warn'));
+      clearProgress();
+      updateFieldLabel();
+      updateAvatar();
+      buildBtn.disabled = true;
+      menu.hidden = true;
+      announce('Lista borrada.');
+    });
+
+    $('resetNames').addEventListener('click', () => {
+      titleIn.value = 'Mi pack';
+      authorIn.value = 'Autor: Yo';
+      menu.hidden = true;
+    });
+
+    updateFieldLabel();
+    updateAvatar();
+  })();
+
+  /* ============================================================
+     TOOL 2 - EDITOR DE VÍDEO/IMAGEN A STICKER
+     ============================================================ */
+  (function () {
+    const SIZE = 512;
+    const MAX_DURATION = 5.0;
+    const MIN_DURATION = 1.0;
+    const DEFAULT_DURATION = 3.0;
+    const ANIM_LIMIT = 490 * 1024;
+    const STATIC_LIMIT = 98 * 1024;
+    const MIN_SIDE = 32;
+    const MAX_FILE_MB = 50;
+
+    const $ = id => document.getElementById('t2-' + id);
+    const toolRoot     = document.getElementById('tool2');
+    const stage        = $('stage');
+    const stageEmpty   = $('stageEmpty');
+    const stageVideo   = $('stageVideo');
+    const video        = $('video');
+    const image        = $('image');
+    const fileInput    = $('fileInput');
+    const pickBtn      = $('pickBtn');
+    const cropEl       = $('crop');
+    const cropFrame    = $('cropFrame');
+    const cropLabel    = $('cropLabel');
+    const shadeTop     = $('shadeTop');
+    const shadeBottom  = $('shadeBottom');
+    const shadeLeft    = $('shadeLeft');
+    const shadeRight   = $('shadeRight');
+
+    const fab          = $('fab');
+    const fabPanel     = $('fabPanel');
+    const fabBadge     = $('fabBadge');
+    const fabNote      = $('fabNote');
+    const fpsField     = $('fpsField');
+
+    const player       = $('player');
+    const playBtn      = $('playBtn');
+    const playIcon     = $('playIcon');
+    const pauseIcon    = $('pauseIcon');
+    const scrubber     = $('scrubber');
+    const scrubberMarks= $('scrubberMarks');
+    const timeNow      = $('timeNow');
+    const timeTotal    = $('timeTotal');
+    const markStartBtn = $('markStartBtn');
+    const markEndBtn   = $('markEndBtn');
+
+    const fileActions  = $('fileActions');
+    const timelineWrap = $('timelineWrap');
+    const timeline     = $('timeline');
+    const timelineRange= $('timelineRange');
+    const handleStart  = $('handleStart');
+    const handleEnd    = $('handleEnd');
+    const tStart       = $('tStart');
+    const tEnd         = $('tEnd');
+    const tLength      = $('tLength');
+
+    const fpsSelect    = $('fps');
+    const keyA         = $('keyA');
+    const keyB         = $('keyB');
+    const keyC         = $('keyC');
+    const valA         = $('valA');
+    const valB         = $('valB');
+    const valC         = $('valC');
+    const valD         = $('valD');
+    const statusEl     = $('status');
+    const buildBtn     = $('buildBtn');
+    const clearBtn     = $('clearBtn');
+    const resultsEl    = $('results');
+
+    let mode = null;
+    let imageFormat = '';
+    let naturalW = 0, naturalH = 0;
+    let duration = 0;
+    let orientation = 'horizontal';
+
+    let sel = { x: 0, y: 0, size: 0 };
+    let range = { start: 0, end: DEFAULT_DURATION };
+
+    let currentUrl = null;
+    let dragCrop = null;
+    let dragMove = null;
+    let dragRange = null;
+    let seekTimer = null;
+    let scrubbing = false;
+
+    function activeMedia() { return mode === 'video' ? video : image; }
+
+    const tick = () => new Promise(r => setTimeout(r));
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+    function setStatus(text, kind) {
+      const show = text && (kind === 'busy' || kind === 'warn');
+      statusEl.textContent = text || '';
+      statusEl.className = 'status' + (kind ? ' is-' + kind : '');
+      statusEl.hidden = !show;
     }
-  } catch (err) {
-    if (state.shareController !== controller || err.name === 'AbortError') return;
-    dom.shareProgressFill.classList.remove('indeterminate');
-    dom.shareStatus.textContent = err.message || 'No se pudo descargar la canción.';
-    dom.btnShareNow.classList.add('hidden');
-  } finally {
-    if (state.shareController === controller) {
-      state.isSharing = false;
-      state.shareController = null;
+
+    function fmtTime(t) { return t.toFixed(1) + ' s'; }
+    function fmtKB(bytes) { return Math.round(bytes / 1024) + ' KB'; }
+    function fmtClock(t) {
+      const s = Math.max(0, Math.floor(t));
+      const m = Math.floor(s / 60);
+      return m + ':' + String(s % 60).padStart(2, '0');
     }
-  }
-}
+    function classifyOrientation(w, h) {
+      if (Math.abs(w - h) < Math.min(w, h) * 0.02) return 'cuadrado';
+      return h > w ? 'vertical' : 'horizontal';
+    }
+    function isAcceptedType(type) {
+      if (!type) return false;
+      if (type.startsWith('video/')) return true;
+      if (type === 'image/jpeg' || type === 'image/png' || type === 'image/webp') return true;
+      return false;
+    }
+    function extToFormat(name) {
+      const ext = (name.split('.').pop() || '').toLowerCase();
+      if (ext === 'jpg' || ext === 'jpeg') return 'JPG';
+      if (ext === 'png') return 'PNG';
+      if (ext === 'webp') return 'WEBP';
+      return ext.toUpperCase();
+    }
 
-async function createShareFile(blob, filePath, track) {
-  const extension = await detectAudioExtension(blob, filePath, track);
-  const safeName = String(track.name || 'cancion').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').trim() || 'cancion';
-  const baseName = safeName.replace(/\.(mp3|flac|ogg|opus|m4a|wav|aac)$/i, '');
-  const fileName = extension ? `${baseName}.${extension}` : baseName;
-  const mimeTypes = {
-    aac: 'audio/aac',
-    flac: 'audio/flac',
-    m4a: 'audio/mp4',
-    mp3: 'audio/mpeg',
-    ogg: 'audio/ogg',
-    opus: 'audio/opus',
-    wav: 'audio/wav'
-  };
-  const type = mimeTypes[extension] || (blob.type !== 'application/octet-stream' ? blob.type : '') || 'application/octet-stream';
-  return new File([blob], fileName, { type });
-}
+    function openFab() { fabPanel.hidden = false; fab.setAttribute('aria-expanded', 'true'); }
+    function closeFab() { fabPanel.hidden = true; fab.setAttribute('aria-expanded', 'false'); }
 
-async function detectAudioExtension(blob, filePath, track) {
-  const supported = ['aac', 'flac', 'm4a', 'mp3', 'ogg', 'opus', 'wav'];
-  const candidates = [filePath, track.file_name];
-  for (const candidate of candidates) {
-    const extension = String(candidate || '').match(/\.([a-z0-9]{2,5})$/i)?.[1].toLowerCase();
-    if (supported.includes(extension)) return extension;
-  }
+    fab.addEventListener('click', e => { e.stopPropagation(); if (fabPanel.hidden) openFab(); else closeFab(); });
+    fabPanel.addEventListener('click', e => e.stopPropagation());
+    toolRoot.addEventListener('click', () => { if (!fabPanel.hidden) closeFab(); });
+    toolRoot.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && !fabPanel.hidden) { closeFab(); fab.focus(); }
+    });
 
-  const format = String(track.format || '').toLowerCase();
-  if (supported.includes(format)) return format;
+    const mediaObserver = new ResizeObserver(() => {
+      if (!naturalW) return;
+      syncCropContainer();
+      renderCrop();
+    });
 
-  const mimeTypes = {
-    'audio/aac': 'aac',
-    'audio/flac': 'flac',
-    'audio/mp3': 'mp3',
-    'audio/mpeg': 'mp3',
-    'audio/mp4': 'm4a',
-    'audio/ogg': 'ogg',
-    'audio/opus': 'opus',
-    'audio/wav': 'wav',
-    'audio/x-flac': 'flac',
-    'audio/x-m4a': 'm4a',
-    'audio/x-wav': 'wav'
-  };
-  const mime = String(track.mime_type || blob.type || '').split(';')[0].trim().toLowerCase();
-  if (mimeTypes[mime]) return mimeTypes[mime];
+    pickBtn.addEventListener('click', () => fileInput.click());
 
-  const bytes = new Uint8Array(await blob.slice(0, 64).arrayBuffer());
-  const signature = String.fromCharCode(...bytes);
-  if (signature.startsWith('ID3')) return 'mp3';
-  if (signature.startsWith('fLaC')) return 'flac';
-  if (signature.startsWith('OggS')) return signature.includes('OpusHead') ? 'opus' : 'ogg';
-  if (signature.startsWith('RIFF') && signature.slice(8, 12) === 'WAVE') return 'wav';
-  if (signature.slice(4, 8) === 'ftyp') return 'm4a';
-  if (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0) {
-    return ((bytes[1] >> 1) & 0x03) === 0 ? 'aac' : 'mp3';
-  }
-  return '';
-}
+    fileInput.addEventListener('change', e => {
+      const file = e.target.files?.[0];
+      fileInput.value = '';
+      if (file) loadFile(file);
+    });
 
-function canShareFile(file) {
-  if (typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') return false;
-  try {
-    return navigator.canShare({ files: [file] });
-  } catch (err) {
-    return false;
-  }
-}
+    let dragDepth = 0;
+    stage.addEventListener('dragenter', e => { e.preventDefault(); dragDepth++; stage.classList.add('is-over'); });
+    stage.addEventListener('dragover', e => e.preventDefault());
+    stage.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; stage.classList.remove('is-over'); } });
+    stage.addEventListener('drop', e => {
+      e.preventDefault(); dragDepth = 0; stage.classList.remove('is-over');
+      const file = Array.from(e.dataTransfer?.files || [])[0];
+      if (file) loadFile(file);
+    });
+    window.addEventListener('dragover', e => e.preventDefault());
+    window.addEventListener('drop', e => e.preventDefault());
 
-async function shareDownloadedFile() {
-  if (!state.shareFile || !state.shareTrack) return;
-  if (canShareFile(state.shareFile)) {
-    try {
-      await navigator.share({
-        files: [state.shareFile],
-        title: state.shareTrack.name,
-        text: state.shareTrack.artist || ''
+    async function loadFile(file) {
+      if (file.size > MAX_FILE_MB * 1024 * 1024) {
+        setStatus(`El archivo pasa de ${MAX_FILE_MB} MB. Prueba con uno más pequeño.`, 'warn');
+        return;
+      }
+      if (!isAcceptedType(file.type)) {
+        setStatus('Formato no soportado. Usa MP4, WebM, MOV, JPG, PNG o WebP.', 'warn');
+        return;
+      }
+
+      teardownMedia();
+
+      if (currentUrl) URL.revokeObjectURL(currentUrl);
+      currentUrl = URL.createObjectURL(file);
+
+      const isVideo = file.type.startsWith('video/');
+      mode = isVideo ? 'video' : 'image';
+
+      setStatus('Cargando…', 'busy');
+
+      try {
+        if (isVideo) {
+          await setupVideo();
+        } else {
+          imageFormat = extToFormat(file.name);
+          await setupImage();
+        }
+
+        orientation = classifyOrientation(naturalW, naturalH);
+
+        const side = Math.round(Math.min(naturalW, naturalH) * 0.55);
+        const yStart = orientation === 'vertical'
+          ? Math.round(naturalH * 0.06)
+          : Math.round((naturalH - side) / 2);
+
+        sel = { x: Math.round((naturalW - side) / 2), y: yStart, size: side };
+
+        if (mode === 'video') {
+          const dflt = Math.min(DEFAULT_DURATION, duration);
+          range = { start: 0, end: dflt };
+        }
+
+        stage.dataset.state = 'ready';
+        stageEmpty.hidden = true;
+        stageVideo.hidden = false;
+        fileActions.hidden = false;
+        buildBtn.hidden = false;
+        buildBtn.disabled = false;
+        resultsEl.innerHTML = '';
+
+        if (mode === 'video') {
+          player.hidden = false;
+          timelineWrap.hidden = false;
+          video.hidden = false;
+          image.hidden = true;
+        } else {
+          player.hidden = true;
+          timelineWrap.hidden = true;
+          video.hidden = true;
+          image.hidden = false;
+        }
+
+        fab.hidden = false;
+        closeFab();
+
+        if (mode === 'video') {
+          scrubber.min = 0;
+          scrubber.max = duration;
+          scrubber.value = 0;
+          timeTotal.textContent = fmtClock(duration);
+          timeNow.textContent = '0:00';
+        }
+
+        mediaObserver.disconnect();
+        mediaObserver.observe(activeMedia());
+
+        await tick(); await tick();
+        syncCropContainer();
+        renderCrop();
+
+        if (mode === 'video') {
+          renderTimeline();
+          updateScrubberMarks();
+          video.currentTime = range.start;
+        }
+
+        applyPanelMode();
+        updateInfo();
+        updateFabBadge();
+
+        setStatus('');
+      } catch (err) {
+        console.error(err);
+        setStatus(err.message, 'warn');
+      }
+    }
+
+    async function setupVideo() {
+      video.src = currentUrl;
+      await new Promise((res, rej) => {
+        const ok = () => { cleanup(); res(); };
+        const err = () => { cleanup(); rej(new Error('Este navegador no puede leer ese vídeo.')); };
+        const cleanup = () => {
+          video.removeEventListener('loadedmetadata', ok);
+          video.removeEventListener('error', err);
+        };
+        video.addEventListener('loadedmetadata', ok, { once: true });
+        video.addEventListener('error', err, { once: true });
       });
-      closeShareDialog();
-      showToast('Canción compartida');
-      return;
-    } catch (err) {
-      showShareFallback(err);
-      return;
-    }
-  }
 
-  downloadShareFile();
-}
+      naturalW = video.videoWidth;
+      naturalH = video.videoHeight;
 
-function showShareFallback(error) {
-  dom.shareStatus.textContent = error?.name === 'AbortError'
-    ? 'El menú se cerró. Puedes volver a abrirlo cuando quieras.'
-    : 'La descarga está lista. Toca para abrir las opciones de compartir.';
-  dom.btnShareNow.innerHTML = '<i class="fas fa-share-nodes"></i> Compartir ahora';
-  dom.btnShareNow.classList.remove('hidden');
-}
+      if (!isFinite(video.duration)) {
+        video.currentTime = 1e7;
+        await new Promise(r => {
+          const onUpdate = () => { video.removeEventListener('timeupdate', onUpdate); r(); };
+          video.addEventListener('timeupdate', onUpdate);
+        });
+        video.currentTime = 0;
+      }
 
-function downloadShareFile() {
-  if (!state.shareFile) return;
-  const objectUrl = URL.createObjectURL(state.shareFile);
-  const link = document.createElement('a');
-  link.href = objectUrl;
-  link.download = state.shareFile.name;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-  closeShareDialog();
-  showToast('Canción descargada');
-}
-
-function cancelShare() {
-  state.shareController?.abort();
-  closeShareDialog();
-}
-
-function closeShareDialog() {
-  state.shareController = null;
-  state.shareFile = null;
-  state.shareTrack = null;
-  state.isSharing = false;
-  dom.shareModal.classList.add('hidden');
-}
-
-/**
- * ─────────────────────────────────────────────────────────────
- *  REPRODUCCIÓN Y CONTROL DE AUDIO
- * ─────────────────────────────────────────────────────────────
- */
-
-async function loadTrack(index, autoPlay = true) {
-  if (state.tracks.length === 0) return;
-
-  const loadId = ++state.trackLoadId;
-  state.isLoadingTrack = true;
-  state.currentIndex = (index + state.tracks.length) % state.tracks.length;
-  const track = state.tracks[state.currentIndex];
-  const hasPreloadedTrack = state.preloadedTrackId === track.id && state.preloadPromise;
-  const preloadPromise = hasPreloadedTrack ? state.preloadPromise : null;
-
-  if (!hasPreloadedTrack) clearPreloadedTrack();
-
-  dom.trackTitle.textContent = track.name;
-  dom.trackArtist.textContent = track.artist;
-  updateFavoriteButton();
-  updateMiniPlayer();
-  updatePlaylistPlaybackButtons();
-  dom.progressFill.style.width = '0%';
-  dom.currentTime.textContent = '0:00';
-  dom.totalTime.textContent = track.duration ? formatTime(track.duration) : '0:00';
-
-  updateActiveTrackInList();
-
-  // Reset carátula
-  dom.playerApp.style.setProperty('--cover-artwork', 'none');
-  dom.coverImg.classList.remove('active');
-  dom.coverPlaceholder.style.display = 'block';
-
-  try {
-    // 1. Obtener la carátula si existe
-    if (track.thumb_id) {
-      getTelegramFileUrl(track.thumb_id)
-        .then((thumbUrl) => {
-          if (loadId !== state.trackLoadId) return;
-          dom.coverImg.src = thumbUrl;
-          dom.playerApp.style.setProperty('--cover-artwork', `url("${thumbUrl}")`);
-          dom.coverImg.classList.add('active');
-          dom.coverPlaceholder.style.display = 'none';
-        })
-        .catch(() => {});
+      duration = isFinite(video.duration) ? video.duration : 0;
+      if (!naturalW || !naturalH || !duration) {
+        throw new Error('No pudimos leer la duración o el tamaño del vídeo.');
+      }
     }
 
-    // 2. Obtener enlace directo de streaming MP3
-    dom.trackArtist.textContent = 'Cargando audio de Telegram...';
-    let streamUrl = '';
+    async function setupImage() {
+      image.src = currentUrl;
+      await new Promise((res, rej) => {
+        const ok = () => { cleanup(); res(); };
+        const err = () => { cleanup(); rej(new Error('Este navegador no puede leer esa imagen.')); };
+        const cleanup = () => {
+          image.removeEventListener('load', ok);
+          image.removeEventListener('error', err);
+        };
+        image.addEventListener('load', ok, { once: true });
+        image.addEventListener('error', err, { once: true });
+      });
 
-    if (preloadPromise) {
-      streamUrl = await preloadPromise;
-      if (loadId !== state.trackLoadId) return;
-      if (streamUrl && state.preloadedTrackId === track.id) {
-        state.audio.pause();
-        promotePreloadedTrack();
+      naturalW = image.naturalWidth;
+      naturalH = image.naturalHeight;
+      duration = 0;
+
+      if (!naturalW || !naturalH) {
+        throw new Error('No pudimos leer el tamaño de la imagen.');
+      }
+    }
+
+    function teardownMedia() {
+      mediaObserver.disconnect();
+
+      if (video.src) {
+        try { video.pause(); } catch (_) {}
+        video.removeAttribute('src');
+        video.load();
+      }
+      video.hidden = true;
+
+      image.removeAttribute('src');
+      image.hidden = true;
+
+      naturalW = naturalH = duration = 0;
+      mode = null;
+      imageFormat = '';
+      sel = { x: 0, y: 0, size: 0 };
+      range = { start: 0, end: DEFAULT_DURATION };
+    }
+
+    clearBtn.addEventListener('click', () => {
+      teardownMedia();
+      if (currentUrl) { URL.revokeObjectURL(currentUrl); currentUrl = null; }
+
+      stage.dataset.state = 'empty';
+      stageEmpty.hidden = false;
+      stageVideo.hidden = true;
+      player.hidden = true;
+      timelineWrap.hidden = true;
+      fileActions.hidden = true;
+      buildBtn.hidden = true;
+      buildBtn.disabled = true;
+      resultsEl.innerHTML = '';
+      fab.hidden = true;
+      closeFab();
+      setStatus('');
+    });
+
+    playBtn.addEventListener('click', () => {
+      if (video.paused) {
+        if (video.currentTime >= range.end - 0.05) video.currentTime = range.start;
+        video.play().catch(err => console.warn(err));
       } else {
-        streamUrl = '';
-      }
-    }
-
-    if (!streamUrl) {
-      streamUrl = await getTelegramFileUrl(track.id);
-      if (loadId !== state.trackLoadId) return;
-      state.audio.src = streamUrl;
-    }
-
-    dom.trackArtist.textContent = track.artist;
-    state.isLoadingTrack = false;
-
-    if (autoPlay) {
-      playTrack();
-    }
-
-    prepareNextTrack();
-  } catch (err) {
-    if (loadId !== state.trackLoadId) return;
-    state.isLoadingTrack = false;
-    console.error('Error al cargar pista:', err);
-    dom.trackArtist.textContent = 'Archivo > 20MB o enlace caducado';
-    pauseTrack();
-  }
-}
-
-function chooseNextTrackIndex() {
-  const queue = getPlaybackQueueIndices();
-  if (queue.length === 0) return 0;
-  if (state.isShuffle && queue.length > 1) {
-    let nextIndex;
-    do {
-      nextIndex = queue[Math.floor(Math.random() * queue.length)];
-    } while (nextIndex === state.currentIndex);
-    return nextIndex;
-  }
-  const currentPosition = queue.indexOf(state.currentIndex);
-  return queue[(currentPosition + 1 + queue.length) % queue.length];
-}
-
-function getUpcomingTrackIndex() {
-  if (state.repeatMode === 'one') return null;
-  const queue = getPlaybackQueueIndices();
-  if (queue.length === 0) return null;
-  if (state.isShuffle && queue.length > 1) return chooseNextTrackIndex();
-  const currentPosition = queue.indexOf(state.currentIndex);
-  if (currentPosition >= 0 && currentPosition < queue.length - 1) return queue[currentPosition + 1];
-  return state.repeatMode === 'all' ? queue[0] : null;
-}
-
-function getPlaybackQueueIndices() {
-  const indexById = new Map(state.tracks.map((track, index) => [track.id, index]));
-  if (!Array.isArray(state.playQueueIds) || state.playQueueIds.length === 0) {
-    return state.tracks.map((track, index) => index);
-  }
-  const queue = state.playQueueIds.map((id) => indexById.get(id)).filter(Number.isInteger);
-  return queue.length ? queue : state.tracks.map((track, index) => index);
-}
-
-function clearPreloadedTrack() {
-  state.preloadRequestId++;
-  state.preloadPromise = null;
-  state.preloadedTrackIndex = null;
-  state.preloadedTrackId = null;
-  state.standbyAudio.pause();
-  state.standbyAudio.removeAttribute('src');
-  state.standbyAudio.load();
-}
-
-function prepareNextTrack() {
-  if (!state.token || state.tracks.length === 0) return;
-
-  const nextIndex = getUpcomingTrackIndex();
-  if (nextIndex === null) {
-    clearPreloadedTrack();
-    return;
-  }
-
-  const track = state.tracks[nextIndex % state.tracks.length];
-  if (state.preloadedTrackId === track.id && state.preloadPromise) {
-    state.preloadedTrackIndex = nextIndex % state.tracks.length;
-    return;
-  }
-
-  clearPreloadedTrack();
-  const requestId = state.preloadRequestId;
-  state.preloadedTrackIndex = nextIndex % state.tracks.length;
-  state.preloadedTrackId = track.id;
-  state.preloadPromise = getTelegramFileUrl(track.id)
-    .then((url) => {
-      if (requestId !== state.preloadRequestId) return '';
-      state.standbyAudio.volume = state.isMuted ? 0 : state.volume;
-      state.standbyAudio.preload = 'auto';
-      state.standbyAudio.src = url;
-      state.standbyAudio.load();
-      return url;
-    })
-    .catch(() => {
-      if (requestId === state.preloadRequestId) {
-        state.preloadPromise = null;
-        state.preloadedTrackIndex = null;
-        state.preloadedTrackId = null;
-      }
-      return '';
-    });
-}
-
-function promotePreloadedTrack() {
-  const previousAudio = state.audio;
-  state.audio = state.standbyAudio;
-  state.standbyAudio = previousAudio;
-  state.preloadRequestId++;
-  state.preloadPromise = null;
-  state.preloadedTrackIndex = null;
-  state.preloadedTrackId = null;
-  clearPreloadedTrack();
-}
-
-function playTrack() {
-  state.audio.play()
-    .then(() => {
-      state.isPlaying = true;
-      dom.btnPlay.innerHTML = '<i class="fas fa-pause"></i>';
-      updateMiniPlayer();
-      updatePlaylistPlaybackButtons();
-    })
-    .catch((err) => {
-      console.warn('Reproducción en pausa:', err);
-      pauseTrack();
-    });
-}
-
-function pauseTrack() {
-  state.audio.pause();
-  state.isPlaying = false;
-  dom.btnPlay.innerHTML = '<i class="fas fa-play"></i>';
-  updateMiniPlayer();
-  updatePlaylistPlaybackButtons();
-}
-
-function togglePlay() {
-  if (state.isPlaying) pauseTrack();
-  else playTrack();
-}
-
-function nextTrack() {
-  if (state.tracks.length === 0) return;
-  const nextIndex = state.preloadedTrackIndex ?? chooseNextTrackIndex();
-  loadTrack(nextIndex, state.isPlaying);
-}
-
-function prevTrack() {
-  if (state.tracks.length === 0) return;
-  if (state.audio.currentTime > 3) {
-    state.audio.currentTime = 0;
-    return;
-  }
-  const queue = getPlaybackQueueIndices();
-  const currentPosition = queue.indexOf(state.currentIndex);
-  const previousPosition = (currentPosition - 1 + queue.length) % queue.length;
-  loadTrack(queue[previousPosition] ?? state.currentIndex, state.isPlaying);
-}
-
-function initAudioListeners() {
-  [state.audio, state.standbyAudio].forEach((audio) => {
-    audio.volume = state.volume;
-    audio.preload = 'auto';
-
-    audio.addEventListener('timeupdate', () => {
-      if (audio !== state.audio || state.isLoadingTrack || isNaN(audio.duration)) return;
-      const progress = (audio.currentTime / audio.duration) * 100;
-      dom.progressFill.style.width = `${progress}%`;
-      dom.currentTime.textContent = formatTime(audio.currentTime);
-    });
-
-    audio.addEventListener('loadedmetadata', () => {
-      if (audio === state.audio) dom.totalTime.textContent = formatTime(audio.duration);
-    });
-
-    audio.addEventListener('ended', () => {
-      if (audio !== state.audio || state.isLoadingTrack) return;
-      if (state.repeatMode === 'one') {
-        audio.currentTime = 0;
-        audio.play();
-      } else if (getUpcomingTrackIndex() !== null) {
-        nextTrack();
-      } else {
-        pauseTrack();
-        audio.currentTime = 0;
+        video.pause();
       }
     });
 
-    audio.addEventListener('error', () => {
-      if (audio !== state.audio || state.isLoadingTrack) return;
-      dom.trackArtist.textContent = 'Error al reproducir audio';
-      pauseTrack();
+    video.addEventListener('play', () => {
+      playIcon.style.display = 'none';
+      pauseIcon.style.display = '';
+      playBtn.setAttribute('aria-label', 'Pausar');
     });
-  });
-}
 
-function initUIListeners() {
-  dom.btnViewPlayer.addEventListener('click', () => setActiveView('player'));
-  dom.btnViewArtists.addEventListener('click', () => setActiveView('artists'));
-  dom.btnViewFavorites.addEventListener('click', () => setActiveView('favorites'));
-  dom.btnViewPlaylists.addEventListener('click', () => setActiveView('playlists'));
-  dom.btnViewSearch.addEventListener('click', () => setActiveView('search'));
-  dom.btnMiniPlayerOpen.addEventListener('click', () => setActiveView('player'));
-  dom.btnMiniPlayerToggle.addEventListener('click', togglePlay);
-  dom.btnPlay.addEventListener('click', togglePlay);
-  dom.btnPrev.addEventListener('click', prevTrack);
-  dom.btnNext.addEventListener('click', nextTrack);
-  dom.btnShare.addEventListener('click', shareCurrentTrack);
-  dom.btnShareNow.addEventListener('click', shareDownloadedFile);
-  dom.btnCloseShare.addEventListener('click', cancelShare);
-  dom.btnCancelShare.addEventListener('click', cancelShare);
-  dom.shareModal.addEventListener('click', (event) => {
-    if (event.target === dom.shareModal) cancelShare();
-  });
+    video.addEventListener('pause', () => {
+      playIcon.style.display = '';
+      pauseIcon.style.display = 'none';
+      playBtn.setAttribute('aria-label', 'Reproducir');
+    });
 
-  dom.btnShuffle.addEventListener('click', () => {
-    state.isShuffle = !state.isShuffle;
-    dom.btnShuffle.classList.toggle('active', state.isShuffle);
-    prepareNextTrack();
-  });
+    video.addEventListener('timeupdate', () => {
+      if (scrubbing) return;
+      scrubber.value = video.currentTime;
+      timeNow.textContent = fmtClock(video.currentTime);
+    });
 
-  dom.btnFavorite.addEventListener('click', toggleCurrentFavorite);
+    video.addEventListener('ended', () => {
+      playIcon.style.display = '';
+      pauseIcon.style.display = 'none';
+      playBtn.setAttribute('aria-label', 'Reproducir');
+    });
 
-  dom.btnRepeat.addEventListener('click', () => {
-    const modes = ['none', 'all', 'one'];
-    const nextIndex = (modes.indexOf(state.repeatMode) + 1) % modes.length;
-    state.repeatMode = modes[nextIndex];
+    scrubber.addEventListener('pointerdown', () => { scrubbing = true; });
+    scrubber.addEventListener('pointerup', () => { scrubbing = false; });
+    scrubber.addEventListener('pointercancel', () => { scrubbing = false; });
 
-    dom.btnRepeat.classList.toggle('active', state.repeatMode !== 'none');
-    dom.btnRepeat.innerHTML = state.repeatMode === 'one'
-      ? '<i class="fas fa-redo-alt"></i>'
-      : '<i class="fas fa-redo"></i>';
-    prepareNextTrack();
-  });
+    scrubber.addEventListener('input', e => {
+      const t = parseFloat(e.target.value);
+      timeNow.textContent = fmtClock(t);
+      try { video.currentTime = t; } catch (_) {}
+    });
 
-  dom.progressBar.addEventListener('click', (e) => {
-    if (isNaN(state.audio.duration)) return;
-    const rect = dom.progressBar.getBoundingClientRect();
-    const clickPos = (e.clientX - rect.left) / rect.width;
-    state.audio.currentTime = clickPos * state.audio.duration;
-  });
+    scrubber.addEventListener('keydown', e => {
+      if (e.key === 'Home') { e.preventDefault(); video.currentTime = 0; scrubber.value = 0; timeNow.textContent = '0:00'; }
+      if (e.key === 'End')  { e.preventDefault(); video.currentTime = duration; scrubber.value = duration; timeNow.textContent = fmtClock(duration); }
+    });
 
-  dom.volumeBtn.addEventListener('click', () => {
-    state.isMuted = !state.isMuted;
-    state.audio.volume = state.isMuted ? 0 : state.volume;
-    state.standbyAudio.volume = state.audio.volume;
-    updateVolumeIcon();
-  });
-
-  dom.searchInput.addEventListener('input', renderSearchResults);
-
-  dom.btnSync.addEventListener('click', () => syncTelegramTracks(true));
-  dom.btnSettings.addEventListener('click', openTokenModal);
-
-  // Atajos de teclado
-  document.addEventListener('keydown', (e) => {
-    if (e.target.tagName === 'INPUT') return;
-    if (e.code === 'Space') {
-      e.preventDefault();
-      togglePlay();
-    } else if (e.code === 'ArrowLeft') {
-      e.preventDefault();
-      prevTrack();
-    } else if (e.code === 'ArrowRight') {
-      e.preventDefault();
-      nextTrack();
-    } else if (e.code === 'KeyM') {
-      dom.volumeBtn.click();
+    function updateScrubberMarks() {
+      scrubberMarks.innerHTML = '';
+      if (!duration || mode !== 'video') return;
+      const add = (t) => {
+        const pct = (t / duration) * 100;
+        const el = document.createElement('span');
+        el.className = 'scrubber-mark';
+        el.style.left = pct + '%';
+        scrubberMarks.appendChild(el);
+      };
+      add(range.start); add(range.end);
     }
-  });
-}
 
-function initPlaylistListeners() {
-  dom.btnCreatePlaylist.addEventListener('click', openPlaylistModal);
-  dom.btnBackup.addEventListener('click', sendBackupToTelegram);
-  dom.btnAddTracks.addEventListener('click', openAddTracksModal);
-  dom.btnDeletePlaylist.addEventListener('click', deleteSelectedPlaylist);
-  dom.btnPlaylistShuffle.addEventListener('click', togglePlaylistShuffle);
-  dom.btnPlaylistPlay.addEventListener('click', playSelectedPlaylist);
-  dom.btnBackArtists.addEventListener('click', () => {
-    dom.artistTracksPanel.classList.add('hidden');
-    dom.artistList.classList.remove('hidden');
-  });
-  dom.btnBackPlaylists.addEventListener('click', () => {
-    state.selectedPlaylistId = '';
-    renderTracksList();
-  });
+    markStartBtn.addEventListener('click', () => {
+      if (mode !== 'video') return;
+      let s = video.currentTime;
+      let e = range.end;
+      if (e - s < MIN_DURATION) e = s + MIN_DURATION;
+      if (e - s > MAX_DURATION) e = s + MAX_DURATION;
+      s = clamp(s, 0, Math.max(0, duration - MIN_DURATION));
+      e = clamp(e, s + MIN_DURATION, Math.min(duration, s + MAX_DURATION));
+      range.start = s; range.end = e;
+      renderTimeline(); updateInfo(); updateScrubberMarks();
+    });
 
-  dom.btnClosePlaylistModal.addEventListener('click', closePlaylistModal);
-  dom.btnCancelPlaylist.addEventListener('click', closePlaylistModal);
-  dom.playlistModal.addEventListener('click', (event) => {
-    if (event.target === dom.playlistModal) closePlaylistModal();
-  });
-  dom.btnSavePlaylist.addEventListener('click', createPlaylist);
-  dom.playlistNameInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Enter') createPlaylist();
-  });
+    markEndBtn.addEventListener('click', () => {
+      if (mode !== 'video') return;
+      let e = video.currentTime;
+      let s = range.start;
+      if (e - s < MIN_DURATION) s = e - MIN_DURATION;
+      if (e - s > MAX_DURATION) s = e - MAX_DURATION;
+      s = clamp(s, 0, Math.max(0, duration - MIN_DURATION));
+      e = clamp(e, s + MIN_DURATION, Math.min(duration, s + MAX_DURATION));
+      range.start = s; range.end = e;
+      renderTimeline(); updateInfo(); updateScrubberMarks();
+    });
 
-  dom.btnCloseAddTracks.addEventListener('click', closeAddTracksModal);
-  dom.btnCancelAddTracks.addEventListener('click', closeAddTracksModal);
-  dom.addTracksModal.addEventListener('click', (event) => {
-    if (event.target === dom.addTracksModal) closeAddTracksModal();
-  });
-  dom.trackPickerSearch.addEventListener('input', renderTrackPicker);
-  dom.btnConfirmAddTracks.addEventListener('click', addSelectedTracks);
-}
-
-/**
- * ─────────────────────────────────────────────────────────────
- *  MODAL DE GESTIÓN DE TOKEN (OPCIÓN 1)
- * ─────────────────────────────────────────────────────────────
- */
-
-function initModalListeners() {
-  dom.btnSaveToken.addEventListener('click', () => {
-    connectTelegramBot(dom.tokenInput.value);
-  });
-
-  dom.tokenInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') connectTelegramBot(dom.tokenInput.value);
-  });
-
-  dom.btnCloseModal.addEventListener('click', closeTokenModal);
-
-  dom.tokenModal.addEventListener('click', (e) => {
-    if (e.target === dom.tokenModal && state.token) closeTokenModal();
-  });
-
-  dom.btnToggleTokenVisibility.addEventListener('click', () => {
-    const isPass = dom.tokenInput.type === 'password';
-    dom.tokenInput.type = isPass ? 'text' : 'password';
-    dom.btnToggleTokenVisibility.innerHTML = isPass ? '<i class="fas fa-eye-slash"></i>' : '<i class="fas fa-eye"></i>';
-  });
-
-  dom.btnDisconnect.addEventListener('click', () => {
-    if (confirm('¿Estás seguro de desconectar el bot y borrar las canciones guardadas?')) {
-      localStorage.removeItem('tg_bot_token');
-      localStorage.removeItem('tg_bot_name');
-      localStorage.removeItem('tg_cached_tracks');
-      localStorage.removeItem('tg_playlists');
-      state.token = '';
-      state.botName = '';
-      state.tracks = [];
-      state.playlists = [];
-      state.selectedPlaylistId = '';
-      pauseTrack();
-      updateBotStatus(false, 'Desconectado');
-      renderTracksList();
-      dom.tokenInput.value = '';
-      dom.btnDisconnect.classList.add('hidden');
-      closeTokenModal();
-      showToast('Bot desconectado');
+    function getQualityLabel(realPx) {
+      if (realPx >= 512) return { label: 'nítido', kind: 'is-ok' };
+      if (realPx >= 320) return { label: 'aceptable', kind: '' };
+      return { label: 'borroso', kind: 'is-warn' };
     }
-  });
-}
 
-function openTokenModal() {
-  dom.tokenInput.value = state.token;
-  dom.tokenError.classList.add('hidden');
-  if (state.token) {
-    dom.btnDisconnect.classList.remove('hidden');
-  } else {
-    dom.btnDisconnect.classList.add('hidden');
-  }
-  dom.tokenModal.classList.remove('hidden');
-  setTimeout(() => dom.tokenInput.focus(), 100);
-}
+    function syncCropContainer() {
+      const media = activeMedia();
+      if (!media) return;
+      const mediaRect = media.getBoundingClientRect();
+      const stageRect = stageVideo.getBoundingClientRect();
+      cropEl.style.left   = (mediaRect.left - stageRect.left) + 'px';
+      cropEl.style.top    = (mediaRect.top  - stageRect.top)  + 'px';
+      cropEl.style.width  = mediaRect.width  + 'px';
+      cropEl.style.height = mediaRect.height + 'px';
+    }
 
-function closeTokenModal() {
-  dom.tokenModal.classList.add('hidden');
-}
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', () => {
+        if (!naturalW) return;
+        syncCropContainer(); renderCrop();
+      });
+    }
 
-function showTokenError(msg) {
-  if (msg) {
-    dom.tokenError.textContent = msg;
-    dom.tokenError.classList.remove('hidden');
-  } else {
-    dom.tokenError.classList.add('hidden');
-  }
-}
+    function renderCrop() {
+      if (!naturalW) return;
 
-function updateBotStatus(online, name) {
-  dom.statusDot.classList.toggle('online', online);
-  dom.botNameLabel.textContent = name;
-}
+      const pctX = (sel.x / naturalW) * 100;
+      const pctY = (sel.y / naturalH) * 100;
+      const pctW = (sel.size / naturalW) * 100;
+      const pctH = (sel.size / naturalH) * 100;
 
-/**
- * ─────────────────────────────────────────────────────────────
- *  BACKUP EN TELEGRAM (SIN DEPENDENCIAS EXTERNAS)
- * ─────────────────────────────────────────────────────────────
- */
+      cropFrame.style.left   = pctX + '%';
+      cropFrame.style.top    = pctY + '%';
+      cropFrame.style.width  = pctW + '%';
+      cropFrame.style.height = pctH + '%';
 
-// Envía canciones y playlists al chat del bot como archivo .json
-async function sendBackupToTelegram() {
-  if (!state.token || !state.chatId) {
-    showToast('Conecta Telegram y envía un mensaje al bot antes de crear el backup');
-    return;
-  }
-  if (state.tracks.length === 0 && state.playlists.length === 0) {
-    showToast('No hay canciones ni playlists para guardar');
-    return;
-  }
+      shadeTop.style.height    = pctY + '%';
+      shadeBottom.style.top    = (pctY + pctH) + '%';
+      shadeLeft.style.top      = pctY + '%';
+      shadeLeft.style.height   = pctH + '%';
+      shadeLeft.style.width    = pctX + '%';
+      shadeRight.style.top     = pctY + '%';
+      shadeRight.style.height  = pctH + '%';
+      shadeRight.style.left    = (pctX + pctW) + '%';
 
-  try {
-    const date = new Date().toISOString().split('T')[0];
-    const backup = {
-      formatVersion: 2,
-      exportedAt: new Date().toISOString(),
-      tracks: state.tracks,
-      playlists: state.playlists
+      cropEl.querySelectorAll('.crop__handle').forEach(h => {
+        const c = h.dataset.corner;
+        const hx = (c === 'tl' || c === 'bl') ? pctX : pctX + pctW;
+        const hy = (c === 'tl' || c === 'tr') ? pctY : pctY + pctH;
+        h.style.left = hx + '%';
+        h.style.top  = hy + '%';
+      });
+
+      const realPx = Math.round(sel.size);
+      const q = getQualityLabel(realPx);
+      cropLabel.innerHTML = `512 × 512<small>${realPx} px del original · ${q.label}</small>`;
+    }
+
+    function pointerToMedia(e) {
+      const media = activeMedia();
+      const rect = media.getBoundingClientRect();
+      return {
+        x: clamp(((e.clientX - rect.left) / rect.width)  * naturalW, 0, naturalW),
+        y: clamp(((e.clientY - rect.top)  / rect.height) * naturalH, 0, naturalH)
+      };
+    }
+
+    cropFrame.addEventListener('pointerdown', e => {
+      if (e.target.classList.contains('crop__handle')) return;
+      e.preventDefault();
+      const media = activeMedia();
+      const rect = media.getBoundingClientRect();
+      dragMove = {
+        offsetX: ((e.clientX - rect.left) / rect.width)  * naturalW - sel.x,
+        offsetY: ((e.clientY - rect.top)  / rect.height) * naturalH - sel.y
+      };
+      cropFrame.setPointerCapture(e.pointerId);
+      document.body.classList.add('is-dragging');
+    });
+
+    cropFrame.addEventListener('pointermove', e => {
+      if (!dragMove) return;
+      const p = pointerToMedia(e);
+      sel.x = clamp(p.x - dragMove.offsetX, 0, naturalW - sel.size);
+      sel.y = clamp(p.y - dragMove.offsetY, 0, naturalH - sel.size);
+      renderCrop();
+    });
+
+    const endMove = e => {
+      if (!dragMove) return;
+      dragMove = null;
+      document.body.classList.remove('is-dragging');
+      if (e.pointerId != null && cropFrame.hasPointerCapture(e.pointerId)) {
+        cropFrame.releasePointerCapture(e.pointerId);
+      }
     };
-    const json = JSON.stringify(backup, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
+    cropFrame.addEventListener('pointerup', endMove);
+    cropFrame.addEventListener('pointercancel', endMove);
 
-    const form = new FormData();
-    form.append('chat_id', state.chatId);
-    form.append('document', blob, `playlist_backup_${date}.json`);
-    form.append('caption', `Backup — ${countLabel(state.tracks.length, 'canción', 'canciones')} y ${countLabel(state.playlists.length, 'playlist', 'playlists')}`);
-
-    const res = await fetch(`https://api.telegram.org/bot${state.token}/sendDocument`, {
-      method: 'POST',
-      body: form
-    });
-    const data = await res.json();
-    if (data.ok) {
-      showToast('Backup de canciones y playlists enviado a Telegram');
-    } else {
-      console.warn('⚠️ Error al enviar backup a Telegram:', data.description);
-      showToast('No se pudo enviar el backup a Telegram');
-    }
-  } catch (err) {
-    console.warn('⚠️ Error al enviar backup a Telegram:', err.message);
-  }
-}
-
-// Restaura la playlist desde un archivo .json de backup enviado al bot
-async function restoreFromBackup(fileId) {
-  try {
-    const url = await getTelegramFileUrl(fileId);
-    const res = await fetch(url);
-    const backup = await res.json();
-    const merged = applyBackupData(backup);
-    showToast(`Backup restaurado: ${merged.restoredTracks} canciones, ${merged.restoredPlaylists} playlists nuevas`);
-  } catch (err) {
-    console.warn('⚠️ Error al restaurar desde backup:', err.message);
-    showToast('❌ Error al leer el archivo de backup');
-  }
-}
-
-function applyBackupData(backup) {
-  const backupTracks = Array.isArray(backup) ? backup : backup?.tracks;
-  const backupPlaylists = Array.isArray(backup?.playlists) ? backup.playlists : [];
-  if (!Array.isArray(backupTracks) || (backupTracks.length === 0 && backupPlaylists.length === 0)) {
-    throw new Error('El archivo no contiene canciones ni playlists válidas');
-  }
-
-  const merged = mergeBackupData(backup);
-  state.tracks = merged.tracks;
-  state.playlists = merged.playlists;
-  ensureFavoritesPlaylist();
-  localStorage.setItem('tg_cached_tracks', JSON.stringify(state.tracks));
-  savePlaylists(false);
-  if (state.tracks.length > 0 && dom.trackTitle.textContent === 'Esperando bot...') {
-    loadTrack(0, false);
-  }
-  return merged;
-}
-
-function mergeBackupData(backup) {
-  const backupTracks = Array.isArray(backup) ? backup : (Array.isArray(backup?.tracks) ? backup.tracks : []);
-  const backupPlaylists = Array.isArray(backup?.playlists) ? backup.playlists : [];
-  const trackMap = new Map(state.tracks.filter((track) => track?.id).map((track) => [track.id, track]));
-  const playlistMap = new Map(state.playlists.filter((playlist) => playlist?.id).map((playlist) => [playlist.id, playlist]));
-  let restoredTracks = 0;
-  let restoredPlaylists = 0;
-
-  backupTracks.forEach((track) => {
-    if (track?.id && !trackMap.has(track.id)) {
-      trackMap.set(track.id, track);
-      restoredTracks++;
-    }
-  });
-
-  backupPlaylists.forEach((playlist) => {
-    if (!playlist?.id || !playlist.name || !Array.isArray(playlist.trackIds)) return;
-    const existing = playlistMap.get(playlist.id);
-    const trackIds = new Set(existing?.trackIds || []);
-    playlist.trackIds.forEach((id) => {
-      if (trackMap.has(id)) trackIds.add(id);
-    });
-    playlistMap.set(playlist.id, { ...existing, ...playlist, trackIds: Array.from(trackIds) });
-    if (!existing) restoredPlaylists++;
-  });
-
-  return {
-    tracks: Array.from(trackMap.values()),
-    playlists: Array.from(playlistMap.values()),
-    restoredTracks,
-    restoredPlaylists
-  };
-}
-
-/**
- * ─────────────────────────────────────────────────────────────
- *  RENDERIZADO Y HELPERS
- * ─────────────────────────────────────────────────────────────
- */
-
-function renderTracksList() {
-  dom.playlistCount.textContent = countLabel(state.tracks.length, 'canción en biblioteca', 'canciones en biblioteca');
-  renderArtistList();
-  renderFavoritesList();
-  renderPlaylistOverview();
-  renderPlaylistDetail();
-  renderSearchResults();
-  updateMiniPlayer();
-}
-
-function renderArtistList() {
-  const artists = new Map();
-  state.tracks.forEach((track) => {
-    const name = String(track.artist || 'Telegram').trim() || 'Telegram';
-    const key = name.toLocaleLowerCase();
-    const artist = artists.get(key) || { name, count: 0 };
-    artist.count++;
-    artists.set(key, artist);
-  });
-
-  const sortedArtists = Array.from(artists.values()).sort((a, b) => a.name.localeCompare(b.name));
-  dom.artistCount.textContent = countLabel(sortedArtists.length, 'artista', 'artistas');
-  if (sortedArtists.length === 0) {
-    dom.artistList.innerHTML = '<div class="empty-msg">Sin artistas todavía. Sincroniza canciones desde Telegram.</div>';
-    return;
-  }
-
-  dom.artistList.innerHTML = sortedArtists.map((artist) => `
-    <button class="collection-row" type="button" data-artist="${escapeHtml(artist.name)}">
-      <span class="collection-avatar">${escapeHtml(artist.name.slice(0, 1).toLocaleUpperCase())}</span>
-      <span class="collection-row-copy">
-        <span class="collection-row-title">${escapeHtml(artist.name)}</span>
-        <span class="collection-row-subtitle">${countLabel(artist.count, 'canción', 'canciones')}</span>
-      </span>
-      <i class="fas fa-chevron-right collection-chevron" aria-hidden="true"></i>
-    </button>
-  `).join('');
-
-  dom.artistList.querySelectorAll('[data-artist]').forEach((item) => {
-    item.addEventListener('click', () => {
-      state.selectedArtist = item.getAttribute('data-artist');
-      dom.artistTrackTitle.textContent = state.selectedArtist;
-      dom.artistList.classList.add('hidden');
-      dom.artistTracksPanel.classList.remove('hidden');
-      const tracks = state.tracks.filter((track) => (track.artist || 'Telegram').trim() === state.selectedArtist);
-      renderTrackItems(dom.artistTrackList, tracks, 'Este artista no tiene canciones.');
-    });
-  });
-}
-
-function ensureFavoritesPlaylist() {
-  let favorites = state.playlists.find((playlist) =>
-    playlist.isDefault === 'favorites' || String(playlist.name || '').trim().toLocaleLowerCase() === 'favoritos'
-  );
-  if (!favorites) {
-    favorites = { id: 'favorites', name: 'Favoritos', trackIds: [], isDefault: 'favorites' };
-    state.playlists.unshift(favorites);
-  } else {
-    favorites.name = 'Favoritos';
-    favorites.isDefault = 'favorites';
-    if (!Array.isArray(favorites.trackIds)) favorites.trackIds = [];
-  }
-  localStorage.setItem('tg_playlists', JSON.stringify(state.playlists));
-  return favorites;
-}
-
-function getFavoritesPlaylist() {
-  return state.playlists.find((playlist) => playlist.isDefault === 'favorites') || ensureFavoritesPlaylist();
-}
-
-function isTrackFavorite(track) {
-  return Boolean(track && getFavoritesPlaylist().trackIds.includes(track.id));
-}
-
-function updateFavoriteButton() {
-  const favorite = isTrackFavorite(state.tracks[state.currentIndex]);
-  dom.btnFavorite.classList.toggle('active', favorite);
-  dom.btnFavorite.setAttribute('aria-pressed', String(favorite));
-  dom.btnFavorite.setAttribute('aria-label', favorite ? 'Quitar canción de Favoritos' : 'Añadir canción a Favoritos');
-  dom.btnFavorite.title = favorite ? 'Quitar de Favoritos' : 'Añadir a Favoritos';
-  dom.btnFavorite.innerHTML = favorite ? '<i class="fas fa-heart"></i>' : '<i class="far fa-heart"></i>';
-}
-
-function toggleCurrentFavorite() {
-  const track = state.tracks[state.currentIndex];
-  if (!track) return;
-
-  const favorites = getFavoritesPlaylist();
-  const index = favorites.trackIds.indexOf(track.id);
-  if (index === -1) {
-    favorites.trackIds.push(track.id);
-    showToast('Añadida a Favoritos');
-  } else {
-    favorites.trackIds.splice(index, 1);
-    showToast('Quitada de Favoritos');
-  }
-
-  savePlaylists(false);
-  updateFavoriteButton();
-}
-
-function renderFavoritesList() {
-  const favorites = getFavoritesPlaylist();
-  const tracks = state.tracks.filter((track) => favorites.trackIds.includes(track.id));
-  dom.favoriteCount.textContent = countLabel(tracks.length, 'canción', 'canciones');
-  renderTrackItems(dom.favoriteTrackList, tracks, 'Todavía no hay favoritos. Usa el corazón en Ahora suena.');
-}
-
-function renderPlaylistOverview() {
-  if (state.playlists.length === 0) {
-    dom.playlistOverview.innerHTML = '<div class="empty-msg">Crea una playlist para organizar tus canciones favoritas.</div>';
-    return;
-  }
-
-  dom.playlistOverview.innerHTML = state.playlists.map((playlist) => {
-    const tracks = getPlaylistTracks(playlist);
-    const artwork = tracks.slice(0, 4);
-    const collage = artwork.length
-      ? artwork.map((track) => `
-          <span class="playlist-art-tile">
-            ${track.thumb_id ? `<img data-thumb-id="${escapeHtml(track.thumb_id)}" alt="" loading="lazy">` : ''}
-            <i class="fas fa-music" aria-hidden="true"></i>
-          </span>
-        `).join('')
-      : '<span class="playlist-art-empty"><i class="fas fa-music" aria-hidden="true"></i></span>';
-    const duration = getPlaylistDurationLabel(tracks);
-
-    return `
-      <button class="collection-row playlist-row" type="button" data-playlist-id="${escapeHtml(playlist.id)}">
-        <span class="playlist-art ${artwork.length === 1 ? 'single-art' : ''}">${collage}</span>
-        <span class="collection-row-copy">
-          <span class="collection-row-title">${escapeHtml(playlist.name)}</span>
-          <span class="collection-row-subtitle">${countLabel(tracks.length, 'canción', 'canciones')}</span>
-          ${duration ? `<span class="collection-row-duration">${escapeHtml(duration)}</span>` : ''}
-        </span>
-        <i class="fas fa-chevron-right collection-chevron" aria-hidden="true"></i>
-      </button>
-    `;
-  }).join('');
-
-  dom.playlistOverview.querySelectorAll('[data-playlist-id]').forEach((item) => {
-    item.addEventListener('click', () => {
-      state.selectedPlaylistId = item.getAttribute('data-playlist-id');
-      renderPlaylistDetail();
-    });
-  });
-  observeTrackThumbnails(dom.playlistOverview);
-}
-
-function renderPlaylistDetail() {
-  const playlist = state.playlists.find((item) => item.id === state.selectedPlaylistId);
-  if (!playlist) {
-    dom.playlistDetail.classList.add('hidden');
-    dom.playlistOverview.classList.remove('hidden');
-    return;
-  }
-
-  dom.playlistOverview.classList.add('hidden');
-  dom.playlistDetail.classList.remove('hidden');
-  dom.btnDeletePlaylist.classList.toggle('hidden', playlist.isDefault === 'favorites');
-  dom.selectedPlaylistTitle.textContent = playlist.name;
-  const tracks = getPlaylistTracks(playlist);
-  const duration = getPlaylistDurationLabel(tracks);
-  dom.selectedPlaylistCount.textContent = `${countLabel(tracks.length, 'canción', 'canciones')}${duration ? ` · ${duration}` : ''}`;
-  const artwork = tracks.slice(0, 4);
-  dom.playlistHeroArt.innerHTML = artwork.length
-    ? artwork.map((track) => `
-        <span class="playlist-hero-tile">
-          ${track.thumb_id ? `<img data-thumb-id="${escapeHtml(track.thumb_id)}" alt="" loading="lazy">` : ''}
-          <i class="fas fa-music" aria-hidden="true"></i>
-        </span>
-      `).join('')
-    : '<span class="playlist-hero-empty"><i class="fas fa-music"></i></span>';
-  dom.playlistHeroArt.dataset.count = String(artwork.length);
-  renderTrackItems(dom.playlistTrackList, tracks, 'Playlist vacía. Añade canciones para empezar.');
-  observeTrackThumbnails(dom.playlistHeroArt);
-  updatePlaylistPlaybackButtons();
-}
-
-function getPlaylistTracks(playlist) {
-  const tracksById = new Map(state.tracks.map((track) => [track.id, track]));
-  return playlist.trackIds.map((id) => tracksById.get(id)).filter(Boolean);
-}
-
-function playSelectedPlaylist() {
-  const playlist = state.playlists.find((item) => item.id === state.selectedPlaylistId);
-  if (!playlist) return;
-
-  const tracks = getPlaylistTracks(playlist);
-  if (tracks.length === 0) {
-    showToast('Esta playlist no tiene canciones');
-    return;
-  }
-
-  const trackIds = tracks.map((track) => track.id);
-  const sameQueue = Array.isArray(state.playQueueIds)
-    && state.playQueueIds.length === trackIds.length
-    && state.playQueueIds.every((id, index) => id === trackIds[index]);
-  const currentTrackId = state.tracks[state.currentIndex]?.id;
-  if (sameQueue && trackIds.includes(currentTrackId)) {
-    togglePlay();
-    return;
-  }
-
-  startPlaylistPlayback(playlist, false);
-}
-
-function togglePlaylistShuffle() {
-  const playlist = state.playlists.find((item) => item.id === state.selectedPlaylistId);
-  if (!playlist) return;
-
-  const trackIds = getPlaylistTracks(playlist).map((track) => track.id);
-  if (trackIds.length === 0) {
-    showToast('Esta playlist no tiene canciones');
-    return;
-  }
-
-  const sameQueue = Array.isArray(state.playQueueIds)
-    && state.playQueueIds.length === trackIds.length
-    && state.playQueueIds.every((id, index) => id === trackIds[index]);
-  if (sameQueue && state.isShuffle) {
-    state.isShuffle = false;
-    dom.btnShuffle.classList.remove('active');
-    prepareNextTrack();
-    updatePlaylistPlaybackButtons();
-    return;
-  }
-
-  startPlaylistPlayback(playlist, true);
-}
-
-function startPlaylistPlayback(playlist, shuffle) {
-  const tracks = getPlaylistTracks(playlist);
-  if (tracks.length === 0) return;
-
-  state.playQueueIds = tracks.map((track) => track.id);
-  state.isShuffle = shuffle;
-  dom.btnShuffle.classList.toggle('active', shuffle);
-  let trackIndex = state.tracks.indexOf(tracks[0]);
-  if (shuffle && tracks.length > 1) {
-    trackIndex = state.tracks.indexOf(tracks[Math.floor(Math.random() * tracks.length)]);
-  }
-  loadTrack(trackIndex, true);
-}
-
-function updatePlaylistPlaybackButtons() {
-  if (!dom.btnPlaylistPlay || !dom.btnPlaylistShuffle) return;
-  const playlist = state.playlists.find((item) => item.id === state.selectedPlaylistId);
-  if (!playlist) return;
-
-  const trackIds = getPlaylistTracks(playlist).map((track) => track.id);
-  const sameQueue = Array.isArray(state.playQueueIds)
-    && state.playQueueIds.length === trackIds.length
-    && state.playQueueIds.every((id, index) => id === trackIds[index]);
-  const currentTrackIsInPlaylist = sameQueue && trackIds.includes(state.tracks[state.currentIndex]?.id);
-  const shouldPause = state.isPlaying && currentTrackIsInPlaylist;
-  dom.btnPlaylistPlay.innerHTML = shouldPause
-    ? '<i class="fas fa-pause"></i>'
-    : '<i class="fas fa-play"></i>';
-  dom.btnPlaylistPlay.setAttribute('aria-label', shouldPause ? 'Pausar playlist' : 'Reproducir playlist');
-  dom.btnPlaylistShuffle.classList.toggle('active', sameQueue && state.isShuffle);
-  dom.btnPlaylistShuffle.setAttribute('aria-pressed', String(sameQueue && state.isShuffle));
-}
-
-function getPlaylistDurationLabel(tracks) {
-  if (tracks.length === 0) return '';
-
-  const knownDurations = tracks
-    .map((track) => Number(track.duration))
-    .filter((duration) => Number.isFinite(duration) && duration > 0);
-  const totalSeconds = knownDurations.reduce((total, duration) => total + duration, 0);
-  const hasUnknownDurations = knownDurations.length < tracks.length;
-  if (totalSeconds === 0) return 'Duración pendiente';
-
-  const totalMinutes = Math.round(totalSeconds / 60);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  const formatted = hours ? `${hours} h${minutes ? ` ${minutes} min` : ''}` : `${minutes} min`;
-  return hasUnknownDurations ? `Duración parcial · ${formatted}` : formatted;
-}
-
-function renderSearchResults() {
-  const query = dom.searchInput.value.trim().toLocaleLowerCase();
-  if (!query) {
-    dom.searchCount.textContent = '';
-    dom.searchTrackList.innerHTML = '<div class="empty-msg">Busca por título o artista.</div>';
-    return;
-  }
-
-  const matches = state.tracks.filter((track) =>
-    `${track.name || ''} ${track.artist || ''}`.toLocaleLowerCase().includes(query)
-  );
-  dom.searchCount.textContent = countLabel(matches.length, 'resultado', 'resultados');
-  renderTrackItems(dom.searchTrackList, matches, 'No se encontraron canciones.');
-}
-
-function renderTrackItems(container, tracks, emptyMessage) {
-  if (tracks.length === 0) {
-    container.innerHTML = `<div class="empty-msg">${emptyMessage}</div>`;
-    return;
-  }
-
-  container.innerHTML = tracks.map((track) => {
-    const index = state.tracks.indexOf(track);
-    return `
-      <button class="track-item ${index === state.currentIndex ? 'active' : ''}" type="button" data-index="${index}" aria-label="${escapeHtml(track.name)} de ${escapeHtml(track.artist)}">
-        <span class="track-artwork" aria-hidden="true">
-          ${track.thumb_id ? `<img data-thumb-id="${escapeHtml(track.thumb_id)}" alt="" loading="lazy">` : ''}
-          <span class="track-artwork-placeholder"><i class="fas fa-music"></i></span>
-        </span>
-        <span class="track-item-details">
-          <span class="track-item-title">${escapeHtml(track.name)}</span>
-          <span class="track-item-artist">${escapeHtml(track.artist)}</span>
-        </span>
-        <i class="fas fa-play track-play-icon" aria-hidden="true"></i>
-      </button>
-    `;
-  }).join('');
-
-  container.querySelectorAll('.track-item').forEach((item) => {
-    item.addEventListener('click', () => {
-      setActiveView('player');
-      state.playQueueIds = tracks.map((track) => track.id);
-      loadTrack(Number(item.getAttribute('data-index')), true);
-    });
-  });
-  observeTrackThumbnails(container);
-}
-
-function initThumbnailObserver() {
-  if (!('IntersectionObserver' in window)) return;
-  state.thumbnailObserver = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      state.thumbnailObserver.unobserve(entry.target);
-      loadTrackThumbnail(entry.target);
-    });
-  }, { rootMargin: '120px 0px' });
-}
-
-function observeTrackThumbnails(container) {
-  if (!state.thumbnailObserver || !state.token) return;
-  container.querySelectorAll('img[data-thumb-id]').forEach((image) => {
-    const cachedUrl = state.thumbnailUrls.get(image.dataset.thumbId);
-    if (cachedUrl) {
-      image.src = cachedUrl;
-      image.classList.add('loaded');
-    } else {
-      state.thumbnailObserver.observe(image);
-    }
-  });
-}
-
-async function loadTrackThumbnail(image) {
-  const fileId = image.dataset.thumbId;
-  let url = state.thumbnailUrls.get(fileId) || '';
-  if (!url) url = await requestTrackThumbnail(fileId);
-  if (!url || !image.isConnected || image.dataset.thumbId !== fileId) return;
-  image.src = url;
-  image.classList.add('loaded');
-}
-
-function requestTrackThumbnail(fileId) {
-  const cachedUrl = state.thumbnailUrls.get(fileId);
-  if (cachedUrl) return Promise.resolve(cachedUrl);
-
-  const pending = state.thumbnailRequests.get(fileId);
-  if (pending) return pending;
-
-  let resolveRequest;
-  const request = new Promise((resolve) => { resolveRequest = resolve; });
-  state.thumbnailRequests.set(fileId, request);
-  state.thumbnailQueue.push({ fileId, resolve: resolveRequest });
-  pumpThumbnailQueue();
-  return request;
-}
-
-function pumpThumbnailQueue() {
-  while (state.thumbnailActive < 3 && state.thumbnailQueue.length > 0) {
-    const job = state.thumbnailQueue.shift();
-    state.thumbnailActive++;
-    getTelegramFileUrl(job.fileId)
-      .then((url) => {
-        state.thumbnailUrls.set(job.fileId, url);
-        job.resolve(url);
-      })
-      .catch(() => job.resolve(''))
-      .finally(() => {
-        state.thumbnailRequests.delete(job.fileId);
-        state.thumbnailActive--;
-        pumpThumbnailQueue();
+    cropEl.querySelectorAll('.crop__handle').forEach(handle => {
+      handle.addEventListener('pointerdown', e => {
+        e.preventDefault(); e.stopPropagation();
+        const corner = handle.dataset.corner;
+        const anchor = {
+          tl: { x: sel.x + sel.size, y: sel.y + sel.size },
+          tr: { x: sel.x,            y: sel.y + sel.size },
+          bl: { x: sel.x + sel.size, y: sel.y            },
+          br: { x: sel.x,            y: sel.y            }
+        }[corner];
+        dragCrop = { corner, anchor };
+        handle.setPointerCapture(e.pointerId);
+        document.body.classList.add('is-dragging');
       });
-  }
-}
 
-function setActiveView(view) {
-  state.activeView = view;
-  const views = {
-    player: [dom.playerScreen, dom.btnViewPlayer],
-    artists: [dom.artistsScreen, dom.btnViewArtists],
-    favorites: [dom.favoritesScreen, dom.btnViewFavorites],
-    playlists: [dom.playlistsScreen, dom.btnViewPlaylists],
-    search: [dom.searchScreen, dom.btnViewSearch]
-  };
-  Object.entries(views).forEach(([name, [screen, button]]) => {
-    const active = name === view;
-    screen.classList.toggle('active', active);
-    button.classList.toggle('active', active);
-    if (active) button.setAttribute('aria-current', 'page');
-    else button.removeAttribute('aria-current');
-  });
-  updateMiniPlayer();
-}
+      handle.addEventListener('pointermove', e => {
+        if (!dragCrop) return;
+        const p = pointerToMedia(e);
+        const dx = Math.abs(p.x - dragCrop.anchor.x);
+        const dy = Math.abs(p.y - dragCrop.anchor.y);
+        const maxSide = Math.min(naturalW, naturalH);
+        const side = clamp(Math.max(dx, dy), MIN_SIDE, maxSide);
 
-function updateMiniPlayer() {
-  const track = state.tracks[state.currentIndex];
-  const visible = state.activeView !== 'player' && Boolean(track);
-  dom.miniPlayer.classList.toggle('hidden', !visible);
-  if (!track) return;
+        let x, y;
+        const c = dragCrop.corner;
+        if (c === 'tl') { x = dragCrop.anchor.x - side; y = dragCrop.anchor.y - side; }
+        else if (c === 'tr') { x = dragCrop.anchor.x; y = dragCrop.anchor.y - side; }
+        else if (c === 'bl') { x = dragCrop.anchor.x - side; y = dragCrop.anchor.y; }
+        else { x = dragCrop.anchor.x; y = dragCrop.anchor.y; }
 
-  dom.miniPlayerTitle.textContent = track.name;
-  dom.miniPlayerArtist.textContent = track.artist || 'Desconocido';
-  dom.btnMiniPlayerToggle.setAttribute('aria-label', state.isPlaying ? 'Pausar' : 'Reproducir');
-  dom.btnMiniPlayerToggle.innerHTML = state.isPlaying
-    ? '<i class="fas fa-pause"></i>'
-    : '<i class="fas fa-play"></i>';
+        x = clamp(x, 0, naturalW - side);
+        y = clamp(y, 0, naturalH - side);
 
-  dom.miniPlayerCover.dataset.trackId = track.id;
-  if (!track.thumb_id) {
-    dom.miniPlayerCover.removeAttribute('src');
-    dom.miniPlayerCover.classList.add('hidden');
-    dom.miniPlayerPlaceholder.classList.remove('hidden');
-    return;
-  }
+        sel = { x, y, size: side };
+        renderCrop();
+      });
 
-  const cachedUrl = state.thumbnailUrls.get(track.thumb_id);
-  if (cachedUrl) {
-    dom.miniPlayerCover.src = cachedUrl;
-    dom.miniPlayerCover.classList.remove('hidden');
-    dom.miniPlayerPlaceholder.classList.add('hidden');
-    return;
-  }
-
-  dom.miniPlayerCover.classList.add('hidden');
-  dom.miniPlayerPlaceholder.classList.remove('hidden');
-  requestTrackThumbnail(track.thumb_id).then((url) => {
-    if (!url || state.tracks[state.currentIndex]?.id !== track.id) return;
-    dom.miniPlayerCover.src = url;
-    dom.miniPlayerCover.classList.remove('hidden');
-    dom.miniPlayerPlaceholder.classList.add('hidden');
-  });
-}
-
-function updateActiveTrackInList() {
-  [dom.artistTrackList, dom.favoriteTrackList, dom.playlistTrackList, dom.searchTrackList].forEach((container) => {
-    container.querySelectorAll('.track-item').forEach((item) => {
-      item.classList.toggle('active', Number(item.getAttribute('data-index')) === state.currentIndex);
+      const end = e => {
+        if (!dragCrop) return;
+        dragCrop = null;
+        document.body.classList.remove('is-dragging');
+        if (e.pointerId != null && handle.hasPointerCapture(e.pointerId)) {
+          handle.releasePointerCapture(e.pointerId);
+        }
+      };
+      handle.addEventListener('pointerup', end);
+      handle.addEventListener('pointercancel', end);
     });
-    const activeItem = container.querySelector('.track-item.active');
-    if (activeItem) activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  });
-}
 
-function openPlaylistModal() {
-  dom.playlistNameInput.value = '';
-  dom.playlistNameError.classList.add('hidden');
-  dom.playlistModal.classList.remove('hidden');
-  setTimeout(() => dom.playlistNameInput.focus(), 50);
-}
+    function renderTimeline() {
+      if (!duration || mode !== 'video') return;
+      const pctStart = (range.start / duration) * 100;
+      const pctEnd   = (range.end   / duration) * 100;
+      handleStart.style.left = pctStart + '%';
+      handleEnd.style.left   = pctEnd   + '%';
+      timelineRange.style.left  = pctStart + '%';
+      timelineRange.style.width = (pctEnd - pctStart) + '%';
+      tStart.textContent  = fmtTime(range.start);
+      tEnd.textContent    = fmtTime(range.end);
+      tLength.textContent = fmtTime(range.end - range.start);
+      handleStart.setAttribute('aria-valuemax', String(duration));
+      handleStart.setAttribute('aria-valuenow', String(range.start.toFixed(2)));
+      handleEnd.setAttribute('aria-valuemax', String(duration));
+      handleEnd.setAttribute('aria-valuenow', String(range.end.toFixed(2)));
+    }
 
-function closePlaylistModal() {
-  dom.playlistModal.classList.add('hidden');
-}
+    function pointerToTime(e) {
+      const rect = timeline.getBoundingClientRect();
+      return clamp((e.clientX - rect.left) / rect.width, 0, 1) * duration;
+    }
 
-function createPlaylist() {
-  const name = dom.playlistNameInput.value.trim();
-  const duplicate = state.playlists.some((playlist) => playlist.name.toLocaleLowerCase() === name.toLocaleLowerCase());
-  if (!name || duplicate) {
-    dom.playlistNameError.textContent = name ? 'Ya existe una playlist con ese nombre.' : 'Escribe un nombre para la playlist.';
-    dom.playlistNameError.classList.remove('hidden');
-    return;
-  }
+    function scheduleSeekPreview() {
+      if (mode !== 'video') return;
+      clearTimeout(seekTimer);
+      seekTimer = setTimeout(() => { try { video.currentTime = range.start; } catch (_) {} }, 60);
+    }
 
-  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  state.playlists.unshift({ id, name, trackIds: [] });
-  state.selectedPlaylistId = id;
-  savePlaylists(false);
-  closePlaylistModal();
-  setActiveView('playlists');
-  renderTracksList();
-  showToast(`Playlist "${name}" creada`);
-}
+    timeline.querySelectorAll('.timeline__handle').forEach(handle => {
+      handle.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        dragRange = { edge: handle.dataset.edge };
+        handle.setPointerCapture(e.pointerId);
+      });
 
-function savePlaylists(showFeedback = true) {
-  localStorage.setItem('tg_playlists', JSON.stringify(state.playlists));
-  renderTracksList();
-  if (showFeedback) showToast('Playlists guardadas en este navegador');
-}
+      handle.addEventListener('pointermove', e => {
+        if (!dragRange) return;
+        const t = pointerToTime(e);
+        if (dragRange.edge === 'start') {
+          let s = clamp(t, 0, duration);
+          s = Math.min(s, range.end - MIN_DURATION);
+          s = Math.max(s, range.end - MAX_DURATION);
+          range.start = Math.max(0, s);
+        } else {
+          let en = clamp(t, 0, duration);
+          en = Math.max(en, range.start + MIN_DURATION);
+          en = Math.min(en, range.start + MAX_DURATION);
+          range.end = Math.min(duration, en);
+        }
+        renderTimeline(); updateInfo(); updateScrubberMarks(); scheduleSeekPreview();
+      });
 
-function deleteSelectedPlaylist() {
-  const playlist = state.playlists.find((item) => item.id === state.selectedPlaylistId);
-  if (playlist?.isDefault === 'favorites') {
-    showToast('Favoritos es una playlist predeterminada');
-    return;
-  }
-  if (!playlist || !confirm(`¿Eliminar la playlist "${playlist.name}"? Las canciones seguirán en tu biblioteca.`)) return;
+      const end = e => {
+        if (!dragRange) return;
+        dragRange = null;
+        if (e.pointerId != null && handle.hasPointerCapture(e.pointerId)) {
+          handle.releasePointerCapture(e.pointerId);
+        }
+      };
+      handle.addEventListener('pointerup', end);
+      handle.addEventListener('pointercancel', end);
 
-  state.playlists = state.playlists.filter((item) => item.id !== playlist.id);
-  state.selectedPlaylistId = '';
-  savePlaylists(false);
-  showToast('Playlist eliminada');
-}
-
-function openAddTracksModal() {
-  if (!state.selectedPlaylistId) return;
-  state.pendingTrackIds = new Set();
-  dom.trackPickerSearch.value = '';
-  renderTrackPicker();
-  dom.addTracksModal.classList.remove('hidden');
-}
-
-function closeAddTracksModal() {
-  dom.addTracksModal.classList.add('hidden');
-  state.pendingTrackIds.clear();
-}
-
-function renderTrackPicker() {
-  const query = dom.trackPickerSearch.value.trim().toLocaleLowerCase();
-  const tracks = state.tracks.filter((track) =>
-    `${track.name || ''} ${track.artist || ''}`.toLocaleLowerCase().includes(query)
-  );
-  if (tracks.length === 0) {
-    dom.trackPickerList.innerHTML = '<div class="empty-msg">No se encontraron canciones.</div>';
-    return;
-  }
-
-  const playlist = state.playlists.find((item) => item.id === state.selectedPlaylistId);
-  const existingIds = new Set(playlist?.trackIds || []);
-  dom.trackPickerList.innerHTML = tracks.map((track) => {
-    const alreadyAdded = existingIds.has(track.id);
-    const checked = alreadyAdded || state.pendingTrackIds.has(track.id);
-    return `
-      <label class="track-picker-row ${alreadyAdded ? 'already-added' : ''}">
-        <input type="checkbox" value="${escapeHtml(track.id)}" ${checked ? 'checked' : ''} ${alreadyAdded ? 'disabled' : ''}>
-        <span class="track-item-details">
-          <span class="track-item-title">${escapeHtml(track.name)}</span>
-          <span class="track-item-artist">${escapeHtml(track.artist)}</span>
-        </span>
-        ${alreadyAdded ? '<span class="picker-added-label">Añadida</span>' : ''}
-      </label>
-    `;
-  }).join('');
-
-  dom.trackPickerList.querySelectorAll('input[type="checkbox"]:not(:disabled)').forEach((checkbox) => {
-    checkbox.addEventListener('change', () => {
-      if (checkbox.checked) state.pendingTrackIds.add(checkbox.value);
-      else state.pendingTrackIds.delete(checkbox.value);
+      handle.addEventListener('keydown', e => {
+        const step = e.shiftKey ? 0.5 : 0.1;
+        if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          const dir = e.key === 'ArrowLeft' ? -1 : 1;
+          if (handle.dataset.edge === 'start') {
+            let s = range.start + dir * step;
+            s = Math.max(0, Math.min(s, range.end - MIN_DURATION));
+            s = Math.max(s, range.end - MAX_DURATION);
+            range.start = s;
+          } else {
+            let en = range.end + dir * step;
+            en = Math.min(duration, Math.max(en, range.start + MIN_DURATION));
+            en = Math.min(en, range.start + MAX_DURATION);
+            range.end = en;
+          }
+          renderTimeline(); updateInfo(); updateScrubberMarks(); scheduleSeekPreview();
+        }
+      });
     });
-  });
-}
 
-function addSelectedTracks() {
-  const playlist = state.playlists.find((item) => item.id === state.selectedPlaylistId);
-  if (!playlist) return;
+    function applyPanelMode() {
+      if (mode === 'video') {
+        fpsField.hidden = false;
+        keyA.textContent = 'Vídeo';
+        keyB.textContent = 'Duración';
+        keyC.textContent = 'Fotogramas';
+        valD.textContent = '490 KB';
+        fabNote.textContent = 'Suelta un vídeo corto, mueve el cuadrado por donde quieras y elige hasta 5 segundos. Te devolvemos un WebP animado de 512 × 512 listo para WhatsApp.';
+      } else if (mode === 'image') {
+        fpsField.hidden = true;
+        keyA.textContent = 'Imagen';
+        keyB.textContent = 'Formato';
+        keyC.textContent = 'Tipo';
+        valD.textContent = '100 KB';
+        fabNote.textContent = 'Mueve el cuadrado sobre la imagen y genera un WebP estático de 512 × 512 listo para WhatsApp.';
+      }
+    }
 
-  const existingIds = new Set(playlist.trackIds);
-  const additions = Array.from(state.pendingTrackIds).filter((id) =>
-    !existingIds.has(id) && state.tracks.some((track) => track.id === id)
-  );
-  playlist.trackIds.push(...additions);
-  closeAddTracksModal();
-  savePlaylists(false);
-  showToast(additions.length ? countLabel(additions.length, 'canción añadida', 'canciones añadidas') : 'No seleccionaste canciones nuevas');
-}
+    function updateInfo() {
+      if (!naturalW) return;
+      const realPx = Math.round(sel.size);
+      const q = getQualityLabel(realPx);
+      valA.innerHTML = `${naturalW} × ${naturalH}<small>${orientation} · recorte ${realPx} px · ${q.label}</small>`;
+      valA.className = 'info__val ' + q.kind;
 
-function updateVolumeIcon() {
-  const icon = dom.volumeBtn.querySelector('i');
-  if (state.isMuted || state.audio.volume === 0) {
-    icon.className = 'fas fa-volume-mute';
-  } else if (state.audio.volume < 0.5) {
-    icon.className = 'fas fa-volume-down';
-  } else {
-    icon.className = 'fas fa-volume-up';
-  }
-}
+      if (mode === 'video') {
+        const dur = range.end - range.start;
+        const fps = parseInt(fpsSelect.value, 10);
+        valB.textContent = dur.toFixed(1) + ' s';
+        valC.textContent = Math.max(1, Math.floor(dur * fps)) + ' fotogramas';
+      } else {
+        valB.textContent = imageFormat || '—';
+        valC.textContent = 'estática';
+      }
+    }
 
-function showToast(msg) {
-  dom.toast.textContent = msg;
-  dom.toast.classList.add('show');
-  setTimeout(() => dom.toast.classList.remove('show'), 2800);
-}
+    function updateFabBadge() {
+      if (mode === 'video') fabBadge.textContent = fpsSelect.value + ' fps';
+      else if (mode === 'image') fabBadge.textContent = imageFormat || 'IMG';
+      else fabBadge.textContent = '—';
+    }
 
-function countLabel(count, singular, plural) {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
+    fpsSelect.addEventListener('change', () => { updateInfo(); updateFabBadge(); });
 
-function formatTime(seconds) {
-  if (isNaN(seconds) || !isFinite(seconds)) return '0:00';
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
-  return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-}
+    const work = document.createElement('canvas');
+    work.width = work.height = SIZE;
+    const wctx = work.getContext('2d', { willReadFrequently: true });
 
-function escapeHtml(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+    function toWebpBlob(canvas, q) {
+      return new Promise((res, rej) => canvas.toBlob(
+        b => (b && b.type === 'image/webp') ? res(b) : rej(new Error('Este navegador no puede codificar WebP.')),
+        'image/webp', q));
+    }
+
+    const u24 = v => [v & 255, (v >> 8) & 255, (v >> 16) & 255];
+    const u32 = v => [v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255];
+    const tag4 = s => [...s].map(c => c.charCodeAt(0));
+
+    function mk(tag, payload) {
+      const pad = payload.length & 1;
+      const out = new Uint8Array(8 + payload.length + pad);
+      out.set(tag4(tag), 0); out.set(u32(payload.length), 4); out.set(payload, 8);
+      return out;
+    }
+    function concat(parts) {
+      const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+      let o = 0; for (const p of parts) { out.set(p, o); o += p.length; }
+      return out;
+    }
+    function imageChunks(buf) {
+      const u8 = new Uint8Array(buf), dv = new DataView(buf), parts = [];
+      let off = 12;
+      while (off + 8 <= u8.length) {
+        const tag = String.fromCharCode(...u8.subarray(off, off + 4));
+        const sz = dv.getUint32(off + 4, true);
+        const end = Math.min(off + 8 + sz + (sz & 1), u8.length);
+        if (tag === 'ALPH' || tag === 'VP8 ' || tag === 'VP8L') parts.push(u8.subarray(off, end));
+        off = end;
+      }
+      return concat(parts);
+    }
+    function muxAnimated(frames) {
+      const vp8x = mk('VP8X', new Uint8Array([0x12, 0, 0, 0, ...u24(SIZE - 1), ...u24(SIZE - 1)]));
+      const anim = mk('ANIM', new Uint8Array([0, 0, 0, 0, 0, 0]));
+      const anmf = frames.map(f => mk('ANMF', concat([
+        new Uint8Array([...u24(0), ...u24(0), ...u24(SIZE - 1), ...u24(SIZE - 1), ...u24(f.duration), 0x03]),
+        f.data
+      ])));
+      const body = concat([new Uint8Array(tag4('WEBP')), vp8x, anim, ...anmf]);
+      return new Blob([concat([new Uint8Array(tag4('RIFF')), new Uint8Array(u32(body.length)), body])], { type: 'image/webp' });
+    }
+
+    function seekTo(t) {
+      return new Promise((resolve, reject) => {
+        if (Math.abs(video.currentTime - t) < 0.0005) {
+          video.currentTime = t + 0.0005;
+        } else {
+          video.currentTime = t;
+        }
+        const onSeeked = () => {
+          video.removeEventListener('seeked', onSeeked);
+          video.removeEventListener('error', onError);
+          if (naturalW) { syncCropContainer(); renderCrop(); }
+          resolve();
+        };
+        const onError = () => {
+          video.removeEventListener('seeked', onSeeked);
+          video.removeEventListener('error', onError);
+          reject(new Error('Fallo al leer un fotograma.'));
+        };
+        video.addEventListener('seeked', onSeeked, { once: true });
+        video.addEventListener('error', onError, { once: true });
+      });
+    }
+
+    async function captureFrames(fps) {
+      const dur = range.end - range.start;
+      const total = Math.max(1, Math.floor(dur * fps));
+      const step = dur / total;
+      const bitmaps = [];
+      const frameDurationMs = Math.round(1000 / fps);
+
+      const sx = Math.round(sel.x);
+      const sy = Math.round(sel.y);
+      const sw = Math.round(sel.size);
+      const sh = Math.round(sel.size);
+
+      for (let i = 0; i <= total; i++) {
+        const t = Math.min(range.start + i * step, range.end - 0.001);
+        await seekTo(t);
+        wctx.clearRect(0, 0, SIZE, SIZE);
+        wctx.drawImage(video, sx, sy, sw, sh, 0, 0, SIZE, SIZE);
+        bitmaps.push(await createImageBitmap(work));
+        setStatus(`Capturando fotogramas… ${i + 1} de ${total + 1}`, 'busy');
+        if (i % 4 === 0) await tick();
+      }
+      return { bitmaps, frameDurationMs };
+    }
+
+    async function encodeFromBitmaps(bitmaps, frameDurationMs) {
+      const qualities = [0.82, 0.65, 0.5, 0.38, 0.28, 0.2];
+      let best = null;
+
+      for (const q of qualities) {
+        setStatus(`Codificando a calidad ${Math.round(q * 100)} %…`, 'busy');
+        const frames = [];
+        for (let i = 0; i < bitmaps.length; i++) {
+          wctx.clearRect(0, 0, SIZE, SIZE);
+          wctx.drawImage(bitmaps[i], 0, 0);
+          const blob = await toWebpBlob(work, q);
+          frames.push({ data: imageChunks(await blob.arrayBuffer()), duration: frameDurationMs });
+          if (i % 6 === 0) await tick();
+        }
+        const out = muxAnimated(frames);
+        if (!best || out.size < best.size) best = out;
+        if (out.size <= ANIM_LIMIT) return { blob: out, quality: q };
+      }
+      return { blob: best, quality: qualities[qualities.length - 1], tooBig: true };
+    }
+
+    async function encodeStatic() {
+      const sx = Math.round(sel.x);
+      const sy = Math.round(sel.y);
+      const sw = Math.round(sel.size);
+      const sh = Math.round(sel.size);
+
+      wctx.clearRect(0, 0, SIZE, SIZE);
+      wctx.drawImage(image, sx, sy, sw, sh, 0, 0, SIZE, SIZE);
+
+      const qualities = [0.92, 0.8, 0.68, 0.55, 0.42, 0.32, 0.24, 0.16];
+      let best = null;
+
+      for (const q of qualities) {
+        setStatus(`Codificando a calidad ${Math.round(q * 100)} %…`, 'busy');
+        const blob = await toWebpBlob(work, q);
+        if (!best || blob.size < best.size) best = blob;
+        if (blob.size <= STATIC_LIMIT) return { blob, quality: q };
+        await tick();
+      }
+      return { blob: best, quality: qualities[qualities.length - 1], tooBig: true };
+    }
+
+    buildBtn.addEventListener('click', async () => {
+      if (!naturalW || !mode) return;
+      buildBtn.disabled = true;
+      clearBtn.disabled = true;
+      resultsEl.innerHTML = '';
+
+      try {
+        let blob, tooBig;
+        if (mode === 'video') {
+          video.pause();
+          const fps = parseInt(fpsSelect.value, 10);
+          const { bitmaps, frameDurationMs } = await captureFrames(fps);
+          const r = await encodeFromBitmaps(bitmaps, frameDurationMs);
+          bitmaps.forEach(b => b.close());
+          blob = r.blob; tooBig = r.tooBig;
+        } else {
+          const r = await encodeStatic();
+          blob = r.blob; tooBig = r.tooBig;
+        }
+
+        const filename = 'sticker-' + Date.now() + '.webp';
+        const url = URL.createObjectURL(blob);
+
+        pushResult({ url, filename, size: blob.size, tooBig });
+        setStatus('');
+
+        if (tooBig) {
+          const limitKB = mode === 'video' ? 490 : 100;
+          setStatus(
+            `El sticker pesa ${fmtKB(blob.size)} y pasa del límite de WhatsApp (${limitKB} KB).\n` +
+            (mode === 'video'
+              ? `Puedes descargarlo igual, pero WhatsApp podría rechazarlo. Prueba a acortar el tramo, bajar los fps o reducir el cuadrado.`
+              : `Puedes descargarlo igual, pero WhatsApp podría rechazarlo. Prueba a reducir el cuadrado o usa una imagen con menos detalle.`),
+            'warn'
+          );
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus('Error: ' + err.message, 'warn');
+      }
+
+      buildBtn.disabled = false;
+      clearBtn.disabled = false;
+    });
+
+    function pushResult({ url, filename, size, tooBig }) {
+      const row = document.createElement('div');
+      row.className = 'result' + (tooBig ? ' result--warn' : '');
+      row.innerHTML =
+        '<div class="result__thumb"><img alt=""></div>' +
+        '<div class="result__meta">' +
+          '<p class="result__name"></p>' +
+          '<p class="result__sub"></p>' +
+        '</div>' +
+        '<a class="result__dl" download>Descargar</a>';
+
+      const kindLabel = mode === 'video' ? 'WebP animado' : 'WebP estático';
+      const limitKB = mode === 'video' ? 490 : 100;
+
+      row.querySelector('img').src = url;
+      row.querySelector('.result__name').textContent = filename;
+      row.querySelector('.result__sub').textContent =
+        `${fmtKB(size)} · 512 × 512 · ${kindLabel}` +
+        (tooBig ? ` · pasa del límite de ${limitKB} KB` : '');
+
+      const a = row.querySelector('.result__dl');
+      a.href = url; a.download = filename;
+
+      resultsEl.prepend(row);
+    }
+
+    document.addEventListener('keydown', e => {
+      if (!toolRoot.classList.contains('is-open')) return;
+      if (!naturalW || mode !== 'video') return;
+      if (e.target.matches('input, textarea, select')) return;
+
+      if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        playBtn.click();
+      } else if (e.key === 'i' || e.key === 'I') {
+        markStartBtn.click();
+      } else if (e.key === 'o' || e.key === 'O') {
+        markEndBtn.click();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        const step = e.shiftKey ? 1 : 0.1;
+        const dir = e.key === 'ArrowLeft' ? -1 : 1;
+        video.currentTime = clamp(video.currentTime + dir * step, 0, duration);
+        scrubber.value = video.currentTime;
+        timeNow.textContent = fmtClock(video.currentTime);
+      }
+    });
+
+    applyPanelMode();
+  })();

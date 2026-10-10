@@ -1,336 +1,380 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reproductor Telegram</title>
-  
-  <!-- Iconos Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <!-- Hoja de Estilos CSS -->
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>WhatsApp Studio</title>
+<meta name="theme-color" content="#0B141A" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./styles.css">
 </head>
 <body>
 
-  <main class="player-app" id="playerApp">
-    <header class="player-header">
-      <div class="bot-status" id="botStatusBadge">
-        <span class="status-dot"></span>
-        <span id="botNameLabel">Telegram Bot</span>
+<!-- ============================================================
+     PANTALLA DE LISTA DE CHATS
+     ============================================================ -->
+<div id="chatList">
+  <header class="wa-head">
+    <h1>WhatsApp</h1>
+    <div class="wa-head__icons">
+      <button type="button" aria-label="Cámara" tabindex="-1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.6l1.2-2h6.4l1.2 2h1.6A2.5 2.5 0 0 1 21 8.5v9A2.5 2.5 0 0 1 18.5 20h-13A2.5 2.5 0 0 1 3 17.5z"/>
+          <circle cx="12" cy="13" r="3.5"/>
+        </svg>
+      </button>
+      <button type="button" aria-label="Más opciones" tabindex="-1">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="5" r="1.7"/>
+          <circle cx="12" cy="12" r="1.7"/>
+          <circle cx="12" cy="19" r="1.7"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="wa-search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="11" cy="11" r="7"/>
+      <line x1="16.5" y1="16.5" x2="21" y2="21"/>
+    </svg>
+    <input type="text" id="searchInput" placeholder="Buscar herramienta" aria-label="Buscar herramienta" spellcheck="false" autocomplete="off">
+  </div>
+
+  <ul class="wa-chats" id="chatListItems">
+    <li class="wa-chat" data-tool="tool1" tabindex="0" role="button" aria-label="Creador de packs">
+      <div class="wa-chat__avatar" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"/>
+        </svg>
       </div>
-      <div class="header-actions">
-        <button id="btnSync" class="btn-icon" title="Sincronizar canciones nuevas" aria-label="Sincronizar">
-          <i class="fas fa-sync-alt"></i>
-        </button>
-        <button id="btnSettings" class="btn-icon" title="Configurar Token" aria-label="Configurar Token">
-          <i class="fas fa-cog"></i>
-        </button>
+      <div class="wa-chat__body">
+        <p class="wa-chat__name">Creador de packs</p>
+        <p class="wa-chat__last">Crea packs .wastickers</p>
       </div>
+      <div class="wa-chat__meta">
+        <span class="wa-chat__time" data-tool-time="tool1"></span>
+        <svg class="wa-chat__mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 15V10a6 6 0 1 0-12 0v5l-2 2h16z"/>
+          <path d="M10 20a2 2 0 0 0 4 0"/>
+          <line x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+      </div>
+    </li>
+
+    <li class="wa-chat" data-tool="tool2" tabindex="0" role="button" aria-label="De vídeo a sticker">
+      <div class="wa-chat__avatar" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2.5c.6 3.9 2.1 5.4 6 6 -3.9.6-5.4 2.1-6 6 -.6-3.9-2.1-5.4-6-6 3.9-.6 5.4-2.1 6-6z"/>
+          <path d="M18.5 14.5c.3 1.9 1 2.6 2.9 2.9 -1.9.3-2.6 1-2.9 2.9 -.3-1.9-1-2.6-2.9-2.9 1.9-.3 2.6-1 2.9-2.9z"/>
+        </svg>
+      </div>
+      <div class="wa-chat__body">
+        <p class="wa-chat__name">De vídeo a sticker</p>
+        <p class="wa-chat__last">Vídeo o imagen a WebP</p>
+      </div>
+      <div class="wa-chat__meta">
+        <span class="wa-chat__time" data-tool-time="tool2"></span>
+        <svg class="wa-chat__mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 15V10a6 6 0 1 0-12 0v5l-2 2h16z"/>
+          <path d="M10 20a2 2 0 0 0 4 0"/>
+          <line x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+      </div>
+    </li>
+  </ul>
+</div>
+
+<!-- ============================================================
+     TOOL 1 - CREADOR DE PACKS .wastickers
+     ============================================================ -->
+<section id="tool1" class="tool" aria-hidden="true">
+  <main class="chat">
+    <svg class="doodle" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <pattern id="t1-doodlePat" width="420" height="420" patternUnits="userSpaceOnUse">
+          <g fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.09">
+            <g transform="translate(18 16) rotate(-12 14 14)"><path d="M14 25S2 18 2 9a6.5 6.5 0 0 1 12-3 6.5 6.5 0 0 1 12 3c0 9-12 16-12 16z"/></g>
+            <g transform="translate(78 8) rotate(9 13 13)"><path d="m13 1 3.5 8 8.5 1-6.3 5.8 1.8 8.4-7.5-4.3-7.5 4.3 1.8-8.4L1 10l8.5-1z"/></g>
+            <g transform="translate(142 16) rotate(-7 15 13)"><rect x="2" y="5" width="27" height="19" rx="4"/><path d="m9 5 2-4h9l2 4"/><circle cx="15.5" cy="14.5" r="5.5"/></g>
+            <g transform="translate(214 8)"><circle cx="14" cy="14" r="13"/><path d="M9 12h.1M19 12h.1M9 17c3 4 7 4 10 0"/></g>
+            <g transform="translate(286 16) rotate(8 15 14)"><path d="M3 13a12 12 0 0 1 24 0v8h-5v-9h5M3 12v9h5v-9z"/><path d="M8 24c2 4 10 4 13 0"/></g>
+            <g transform="translate(360 10)"><path d="M14 1v26M1 14h26M5 5l18 18M23 5 5 23"/><circle cx="14" cy="14" r="5"/></g>
+
+            <g transform="translate(42 66) rotate(8 16 14)"><path d="M2 8a6 6 0 0 1 6-6h17a6 6 0 0 1 6 6v10a6 6 0 0 1-6 6H13l-8 6v-6a6 6 0 0 1-3-6z"/><path d="M10 10h13M10 15h9"/></g>
+            <g transform="translate(112 64)"><ellipse cx="5" cy="24" rx="4" ry="3.5"/><ellipse cx="20" cy="21" rx="4" ry="3.5"/><path d="M9 24V5l15-3v19"/></g>
+            <g transform="translate(184 66)"><path d="M20 3A12 12 0 1 0 20 27 10 10 0 0 1 20 3z"/></g>
+            <g transform="translate(258 68) rotate(-12 14 14)"><circle cx="14" cy="14" r="12"/><path d="M9 12h.1M18 12h.1M9 18q5 5 10 0"/></g>
+            <g transform="translate(334 66)"><path d="m15 1 3 9h9l-7.5 5.5 3 9-7.5-5.5L7.5 24l3-9L3 9h9z"/></g>
+            <g transform="translate(392 70) rotate(18 10 10)"><path d="M10 1v18M4 13c0 8 12 8 12 0M7 19l-4 6M13 19l4 6"/></g>
+
+            <g transform="translate(6 132)"><circle cx="15" cy="15" r="12"/><path d="M11 13h.1M19 13h.1M10 19q5 5 10 0"/><path d="m6 5-3-3M24 5l3-3"/></g>
+            <g transform="translate(74 128) rotate(-8 16 15)"><path d="M3 8h25v16a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5z"/><path d="M28 12h4a5 5 0 0 1 0 10h-4M8 3v3M14 3v3M20 3v3"/></g>
+            <g transform="translate(146 134)"><path d="M16 1 4 17h9l-2 13 15-19h-10z"/></g>
+            <g transform="translate(218 130) rotate(10 14 14)"><circle cx="14" cy="14" r="12"/><path d="M9 12h.1M18 12h.1M9 17q5 6 10 0"/></g>
+            <g transform="translate(286 128)"><path d="M14 2c-3 5-10 11-10 17a10 10 0 0 0 20 0c0-6-7-12-10-17z"/><path d="M9 20c1 3 3 4 6 4"/></g>
+            <g transform="translate(356 132) rotate(-10 15 14)"><path d="M3 5h24v18H3zM8 5l2-4h10l2 4"/><circle cx="15" cy="14" r="5"/></g>
+
+            <g transform="translate(26 198) rotate(12 13 13)"><path d="M2 2h22v19H11l-7 6v-6H2z"/><circle cx="8" cy="11" r="1"/><circle cx="13" cy="11" r="1"/><circle cx="18" cy="11" r="1"/></g>
+            <g transform="translate(100 198)"><circle cx="14" cy="14" r="12"/><path d="M14 6v8l6 4"/><path d="M14 1v3M27 14h-3"/></g>
+            <g transform="translate(170 196)"><path d="M14 1 2 14l10-2-2 14 13-17-10 2z"/><path d="m4 4-2-2M24 4l2-2"/></g>
+            <g transform="translate(244 202) rotate(-12 14 12)"><path d="M4 20V8l10-6 10 6v12z"/><path d="M9 20v-7h10v7M8 9h.1M14 9h.1M20 9h.1"/></g>
+            <g transform="translate(316 198)"><path d="M6 4a10 10 0 1 1 16 0L20 9H8zM9 13h10M10 17h8M12 21h4"/></g>
+            <g transform="translate(382 198) rotate(10 12 12)"><path d="M12 1v22M1 12h22M4 4l16 16M20 4 4 20"/><circle cx="12" cy="12" r="4"/></g>
+
+            <g transform="translate(2 264)"><path d="M3 7h24v16a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6z"/><path d="M27 11h4a5 5 0 0 1 0 10h-4M9 3v4M15 3v4M21 3v4"/></g>
+            <g transform="translate(72 266) rotate(-8 14 14)"><path d="M14 1 2 16h9l-2 12 17-19H15z"/></g>
+            <g transform="translate(144 264)"><path d="M5 5 3 1l7 3h8l7-3-2 4v12a9 9 0 0 1-18 0z"/><circle cx="10" cy="12" r="1"/><circle cx="18" cy="12" r="1"/><path d="M10 17h8"/></g>
+            <g transform="translate(218 266)"><circle cx="14" cy="14" r="12"/><path d="M14 2c-4 5-4 19 0 24M14 2c4 5 4 19 0 24M3 9h22M3 19h22"/></g>
+            <g transform="translate(290 264) rotate(12 13 13)"><path d="M13 1v24M1 13h24M5 5l16 16M21 5 5 21"/><circle cx="13" cy="13" r="5"/></g>
+            <g transform="translate(358 264)"><path d="M5 8h18v17H5zM9 8V4a5 5 0 0 1 10 0v4M9 15h10"/></g>
+
+            <g transform="translate(30 332)"><path d="M2 5h24v15H2z"/><path d="m2 7 12 9L26 7M7 24h14"/></g>
+            <g transform="translate(102 330) rotate(-10 14 14)"><path d="M14 2v12l9 6"/><circle cx="14" cy="15" r="12"/><path d="M14 0v3"/></g>
+            <g transform="translate(174 330)"><path d="M14 1c-4 6-11 12-11 18a11 11 0 0 0 22 0C25 13 18 7 14 1z"/><path d="M10 20q2 4 6 2"/></g>
+            <g transform="translate(246 330) rotate(10 14 14)"><path d="M14 2 3 7v8c0 7 5 11 11 14 6-3 11-7 11-14V7z"/><path d="m9 15 4 4 7-8"/></g>
+            <g transform="translate(318 330)"><path d="M5 2h18v25H5zM9 7h10M9 12h10M9 17h6"/></g>
+            <g transform="translate(388 330)"><path d="M14 1 2 14h9l-2 13 16-18h-10z"/></g>
+          </g>
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#t1-doodlePat)"/>
+    </svg>
+
+    <header class="chat-head">
+      <button type="button" class="chat-head__back" data-close="tool1" aria-label="Volver">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5"/>
+          <path d="M12 19l-7-7 7-7"/>
+        </svg>
+      </button>
+
+      <div class="chat-head__avatar" id="t1-avatar" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.6-.8L3 21l1.9-5.1A8.4 8.4 0 0 1 12 3.1a8.4 8.4 0 0 1 9 8.4z"/>
+        </svg>
+      </div>
+
+      <div class="chat-head__meta">
+        <input class="chat-head__name" id="t1-title" value="Mi pack" aria-label="Nombre del pack" spellcheck="false">
+        <input class="chat-head__sub" id="t1-author" value="Autor: Yo" aria-label="Autor del pack" spellcheck="false">
+      </div>
+
+      <button class="chat-head__more" id="t1-moreBtn" aria-label="Más opciones" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>
+      </button>
     </header>
 
-    <div class="app-content">
-      <section class="app-view player-screen active" id="playerScreen" aria-label="Reproductor">
-        <div class="now-playing-label">REPRODUCIENDO DESDE TELEGRAM</div>
-
-        <section class="cover-wrapper">
-          <img id="coverImg" class="cover-img" src="" alt="Carátula del álbum">
-          <div id="coverPlaceholder" class="cover-placeholder">
-            <i class="fas fa-compact-disc"></i>
-          </div>
-        </section>
-
-        <section class="track-info">
-          <h1 id="trackTitle" class="track-name">Esperando bot...</h1>
-          <p id="trackArtist" class="track-artist">―</p>
-        </section>
-
-        <section class="mode-controls" aria-label="Modos de reproducción">
-          <button id="btnFavorite" class="btn-ctrl btn-favorite" type="button" title="Añadir a Favoritos" aria-label="Añadir canción a Favoritos" aria-pressed="false">
-            <i class="far fa-heart"></i>
-          </button>
-          <button id="btnShuffle" class="btn-ctrl" title="Aleatorio" aria-label="Modo aleatorio" aria-pressed="false">
-            <i class="fas fa-random"></i>
-          </button>
-          <button id="btnRepeat" class="btn-ctrl" title="Repetir" aria-label="Modo repetición" aria-pressed="false">
-            <i class="fas fa-redo"></i>
-          </button>
-          <button id="btnShare" class="btn-ctrl" type="button" title="Compartir canción" aria-label="Compartir canción">
-            <i class="fas fa-share-nodes"></i>
-          </button>
-        </section>
-
-        <section class="progress-section">
-          <div id="progressBar" class="progress-bar-container" role="progressbar" aria-label="Progreso">
-            <div id="progressFill" class="progress-fill"></div>
-          </div>
-          <div class="time-indicators">
-            <span id="currentTime">0:00</span>
-            <span id="totalTime">0:00</span>
-          </div>
-        </section>
-
-        <section class="controls" aria-label="Controles de reproducción">
-          <button id="volumeBtn" class="volume-btn" type="button" title="Silenciar" aria-label="Silenciar">
-            <i class="fas fa-volume-up"></i>
-          </button>
-          <button id="btnPrev" class="btn-ctrl" title="Pista anterior" aria-label="Pista anterior">
-            <i class="fas fa-step-backward"></i>
-          </button>
-          <button id="btnPlay" class="btn-play" title="Reproducir" aria-label="Reproducir o pausar">
-            <i class="fas fa-play"></i>
-          </button>
-          <button id="btnNext" class="btn-ctrl" title="Siguiente pista" aria-label="Siguiente pista">
-            <i class="fas fa-step-forward"></i>
-          </button>
-        </section>
-      </section>
-
-      <section class="app-view collection-screen" id="artistsScreen" aria-label="Artistas">
-        <div class="collection-heading">
-          <div>
-            <p class="now-playing-label">EXPLORAR</p>
-            <h1>Artistas</h1>
-          </div>
-          <span id="artistCount" class="collection-count"></span>
-        </div>
-        <div id="artistList" class="collection-list"></div>
-        <section id="artistTracksPanel" class="collection-detail hidden" aria-label="Canciones del artista">
-          <div class="detail-toolbar">
-            <button id="btnBackArtists" class="btn-icon" type="button" aria-label="Volver a artistas" title="Volver">
-              <i class="fas fa-arrow-left"></i>
-            </button>
-            <h2 id="artistTrackTitle"></h2>
-          </div>
-          <div id="artistTrackList" class="playlist-tracks"></div>
-        </section>
-      </section>
-
-      <section class="app-view collection-screen" id="favoritesScreen" aria-label="Canciones favoritas">
-        <div class="collection-heading">
-          <div>
-            <p class="now-playing-label">TU COLECCIÓN</p>
-            <h1>Favoritos</h1>
-          </div>
-          <span id="favoriteCount" class="collection-count"></span>
-        </div>
-        <div id="favoriteTrackList" class="playlist-tracks"></div>
-      </section>
-
-      <section class="app-view collection-screen" id="playlistsScreen" aria-label="Playlists">
-        <div class="collection-heading">
-          <div>
-            <p class="now-playing-label">TU MÚSICA</p>
-            <h1>Playlists</h1>
-          </div>
-          <div class="collection-actions">
-            <button id="btnBackup" class="btn-icon" type="button" title="Crear backup de canciones y playlists" aria-label="Crear backup">
-              <i class="fas fa-cloud-arrow-up"></i>
-            </button>
-            <button id="btnCreatePlaylist" class="btn-icon" type="button" title="Crear playlist" aria-label="Crear playlist">
-              <i class="fas fa-plus"></i>
-            </button>
-          </div>
-        </div>
-        <div class="playlist-header-row">
-          <span id="playlistCount" class="playlist-count">0 canciones</span>
-          <span class="source-tag"><i class="fab fa-telegram-plane"></i> Telegram</span>
-        </div>
-        <div id="playlistOverview" class="collection-list"></div>
-        <section id="playlistDetail" class="collection-detail hidden" aria-label="Detalle de playlist">
-          <button id="btnBackPlaylists" class="btn-icon playlist-detail-back" type="button" aria-label="Volver a playlists" title="Volver">
-            <i class="fas fa-arrow-left"></i>
-          </button>
-          <div id="playlistHeroArt" class="playlist-hero-art"></div>
-          <div class="playlist-hero-copy">
-            <p class="playlist-owner">TU COLECCIÓN</p>
-            <h2 id="selectedPlaylistTitle"></h2>
-            <span id="selectedPlaylistCount" class="collection-count"></span>
-          </div>
-          <div class="playlist-detail-actions">
-            <button id="btnPlaylistShuffle" class="btn-ctrl" type="button" title="Reproducir aleatoriamente" aria-label="Reproducir playlist aleatoriamente" aria-pressed="false">
-              <i class="fas fa-shuffle"></i>
-            </button>
-            <button id="btnDeletePlaylist" class="btn-icon danger-action" type="button" aria-label="Eliminar playlist" title="Eliminar playlist">
-              <i class="fas fa-trash"></i>
-            </button>
-            <button id="btnPlaylistPlay" class="playlist-play-button" type="button" aria-label="Reproducir playlist">
-              <i class="fas fa-play"></i>
-            </button>
-          </div>
-          <button id="btnAddTracks" class="add-tracks-button" type="button">
-            <i class="fas fa-plus"></i>
-            Añadir canciones
-          </button>
-          <div id="playlistTrackList" class="playlist-tracks"></div>
-        </section>
-      </section>
-
-      <section class="app-view collection-screen search-screen" id="searchScreen" aria-label="Buscar canciones">
-        <div class="collection-heading">
-          <div>
-            <p class="now-playing-label">BIBLIOTECA</p>
-            <h1>Buscar</h1>
-          </div>
-        </div>
-        <label class="search-field">
-          <i class="fas fa-search" aria-hidden="true"></i>
-          <input id="searchInput" type="search" placeholder="Canción o artista" autocomplete="off" aria-label="Buscar canciones o artistas">
-        </label>
-        <span id="searchCount" class="collection-count"></span>
-        <div id="searchTrackList" class="playlist-tracks"></div>
-      </section>
+    <div class="menu" id="t1-menu" hidden>
+      <button type="button" id="t1-clearList">Borrar la lista</button>
+      <button type="button" id="t1-resetNames">Restablecer nombre y autor</button>
     </div>
 
-    <div id="miniPlayer" class="mini-player hidden">
-      <button id="btnMiniPlayerOpen" class="mini-player-main" type="button" aria-label="Abrir Ahora suena">
-        <span class="mini-player-artwork">
-          <img id="miniPlayerCover" src="" alt="" class="hidden">
-          <i id="miniPlayerPlaceholder" class="fas fa-music" aria-hidden="true"></i>
-        </span>
-        <span class="mini-player-copy">
-          <span id="miniPlayerTitle" class="mini-player-title"></span>
-          <span id="miniPlayerArtist" class="mini-player-artist"></span>
-        </span>
-      </button>
-      <button id="btnMiniPlayerToggle" class="mini-player-toggle" type="button" aria-label="Reproducir o pausar">
-        <i class="fas fa-play"></i>
-      </button>
+    <div class="chat-body" id="t1-chatBody">
+      <p class="divider">hoy</p>
+      <div class="msg msg--in">
+        <p class="msg__text">Aquí puedes convertir tus imágenes en un pack de stickers para WhatsApp.
+
+Suelta tus archivos o pulsa el clip. Cuando los tengas todos, pulsa el botón verde.</p>
+      </div>
     </div>
 
-    <nav class="bottom-nav" aria-label="Vistas del reproductor">
-      <button id="btnViewPlayer" class="nav-tab active" type="button" aria-label="Ahora suena" aria-current="page">
-        <i class="fas fa-play-circle"></i>
-        <span>Ahora suena</span>
+    <footer class="chat-foot">
+      <button type="button" class="chat-foot__attach" id="t1-attach" aria-label="Añadir archivos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.4 11.05 12.25 20.2a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.67 3.67 0 0 1 5.19 5.19l-9.2 9.19a1.83 1.83 0 1 1-2.59-2.59l8.49-8.49"/>
+        </svg>
       </button>
-      <button id="btnViewArtists" class="nav-tab" type="button" aria-label="Ver artistas">
-        <i class="fas fa-user"></i>
-        <span>Artistas</span>
+
+      <button type="button" class="chat-foot__field" id="t1-field">
+        Añade tus imágenes…
       </button>
-      <button id="btnViewFavorites" class="nav-tab" type="button" aria-label="Ver favoritos">
-        <i class="fas fa-heart"></i>
-        <span>Favoritos</span>
+
+      <button type="button" class="chat-foot__send" id="t1-buildBtn" disabled aria-label="Crear los packs">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M2.4 20.6 22 12 2.4 3.4 2.4 10l13 2-13 2z"/>
+        </svg>
       </button>
-      <button id="btnViewPlaylists" class="nav-tab" type="button" aria-label="Ver playlists">
-        <i class="fas fa-list-ul"></i>
-        <span>Playlists</span>
-      </button>
-      <button id="btnViewSearch" class="nav-tab" type="button" aria-label="Buscar">
-        <i class="fas fa-search"></i>
-        <span>Buscar</span>
-      </button>
-    </nav>
+    </footer>
+
+    <input type="file" id="t1-fileInput" multiple hidden
+           accept="image/webp,image/gif,image/png,image/jpeg,.webp,.gif,.png,.jpg,.jpeg">
+
+    <p class="sr-only" id="t1-live" role="status" aria-live="polite"></p>
   </main>
+</section>
 
-  <div id="playlistModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="playlistModalTitle">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h2 id="playlistModalTitle" class="modal-title">Crear playlist</h2>
-        <button id="btnClosePlaylistModal" class="modal-close-btn" type="button" aria-label="Cerrar">&times;</button>
-      </div>
-      <div class="modal-body">
-        <label class="field-label" for="playlistNameInput">Nombre</label>
-        <input id="playlistNameInput" class="text-field" type="text" maxlength="48" placeholder="Ej. Románticas" autocomplete="off">
-        <div id="playlistNameError" class="error-msg hidden"></div>
-      </div>
-      <div class="modal-footer">
-        <button id="btnCancelPlaylist" class="btn-secondary" type="button">Cancelar</button>
-        <button id="btnSavePlaylist" class="btn-primary" type="button">Crear</button>
-      </div>
-    </div>
-  </div>
+<!-- ============================================================
+     TOOL 2 - EDITOR DE VÍDEO/IMAGEN
+     ============================================================ -->
+<section id="tool2" class="tool" aria-hidden="true">
 
-  <div id="addTracksModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="addTracksTitle">
-    <div class="modal-card add-tracks-modal">
-      <div class="modal-header">
-        <h2 id="addTracksTitle" class="modal-title">Añadir canciones</h2>
-        <button id="btnCloseAddTracks" class="modal-close-btn" type="button" aria-label="Cerrar">&times;</button>
-      </div>
-      <div class="modal-body add-tracks-body">
-        <label class="search-field picker-search">
-          <i class="fas fa-search" aria-hidden="true"></i>
-          <input id="trackPickerSearch" type="search" placeholder="Filtrar canciones" autocomplete="off" aria-label="Filtrar canciones">
-        </label>
-        <div id="trackPickerList" class="track-picker-list"></div>
-      </div>
-      <div class="modal-footer">
-        <button id="btnCancelAddTracks" class="btn-secondary" type="button">Cancelar</button>
-        <button id="btnConfirmAddTracks" class="btn-primary" type="button">Añadir seleccionadas</button>
-      </div>
-    </div>
-  </div>
+  <svg class="doodle" aria-hidden="true" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <pattern id="t2-doodlePat" width="260" height="260" patternUnits="userSpaceOnUse">
+        <g fill="none" stroke="#FFFFFF" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" opacity="0.055">
+          <g transform="translate(16 18)"><path d="M12 21C7 17.5 2 13.5 2 8.5A5.5 5.5 0 0 1 12 5.5 5.5 5.5 0 0 1 22 8.5c0 5-5 9-10 12.5z"/></g>
+          <g transform="translate(148 10)"><path d="M11 .8 13.8 8 21.5 8.6l-6 5 2 7.6L11 17.2.5 21.2l2-7.6-6-5L4.2 8z"/></g>
+          <g transform="translate(90 26)"><rect x="0" y="4" width="26" height="18" rx="3.5"/><path d="M8 4l2-3h6l2 3"/><circle cx="13" cy="13" r="5"/></g>
+          <g transform="translate(212 22)"><circle cx="12" cy="12" r="11"/><circle cx="8.2" cy="9.5" r="1.1" fill="#FFFFFF" stroke="none"/><circle cx="15.8" cy="9.5" r="1.1" fill="#FFFFFF" stroke="none"/><path d="M6.5 14.5a6.5 6.5 0 0 0 11 0"/></g>
+          <g transform="translate(34 82)"><path d="M0 7a6 6 0 0 1 6-6h18a6 6 0 0 1 6 6v9a6 6 0 0 1-6 6H11l-8 6v-6H6a6 6 0 0 1-6-6z"/></g>
+          <g transform="translate(120 96)"><ellipse cx="4" cy="20" rx="4.5" ry="3.5"/><ellipse cx="17" cy="17.5" rx="4.5" ry="3.5"/><path d="M8.5 20V3l13-3v17"/></g>
+          <g transform="translate(198 92)"><path d="M15 2A11 11 0 1 0 15 24 9 9 0 0 1 15 2z"/></g>
+          <g transform="translate(28 162)"><circle cx="12" cy="6" r="4"/><circle cx="6" cy="14" r="4"/><circle cx="18" cy="14" r="4"/><circle cx="10" cy="22" r="4"/><circle cx="12" cy="14" r="2.2" fill="#FFFFFF" stroke="none"/></g>
+          <g transform="translate(106 172)"><path d="M2 8h20v9a6 6 0 0 1-6 6H8a6 6 0 0 1-6-6z"/><path d="M22 11h3a4 4 0 0 1 0 8h-3"/><path d="M7 1.5v3M12 1.5v3M17 1.5v3" opacity=".8"/></g>
+          <g transform="translate(180 174)"><path d="M13 0 2 15h8l-2 11L22 10h-8z"/></g>
+          <g transform="translate(48 208)"><path d="M0 2 22 2 11 22z"/><circle cx="8" cy="8" r="1.2" fill="#FFFFFF" stroke="none"/><circle cx="15" cy="8" r="1.2" fill="#FFFFFF" stroke="none"/><circle cx="11" cy="14" r="1.2" fill="#FFFFFF" stroke="none"/></g>
+          <g transform="translate(158 200)"><path d="M3 8 2 1l6 3h8l6-3-1 7v6a9 9 0 0 1-18 0z"/><circle cx="8" cy="10" r="1" fill="#FFFFFF" stroke="none"/><circle cx="16" cy="10" r="1" fill="#FFFFFF" stroke="none"/><path d="M10 14.5h4M4 12l-3-1M4 15H1M20 12l3-1M20 15h3"/></g>
+        </g>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#t2-doodlePat)"/>
+  </svg>
 
-  <div id="shareModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
-    <div class="modal-card share-dialog">
-      <div class="modal-header">
-        <h2 id="shareModalTitle" class="modal-title">Compartir canción</h2>
-        <button id="btnCloseShare" class="modal-close-btn" type="button" aria-label="Cancelar descarga">&times;</button>
+  <header class="tool-head">
+    <button type="button" class="tool-head__back" data-close="tool2" aria-label="Volver">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5"/>
+        <path d="M12 19l-7-7 7-7"/>
+      </svg>
+    </button>
+    <h2>De vídeo a sticker</h2>
+  </header>
+
+  <div class="board">
+
+    <section class="stage" id="t2-stage" data-state="empty" aria-label="Medio de trabajo">
+      <input type="file" id="t2-fileInput"
+             accept="video/mp4,video/webm,video/quicktime,video/*,image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+             hidden>
+
+      <div class="stage__empty" id="t2-stageEmpty">
+        <strong>Suelta tu archivo aquí</strong>
+        <button type="button" class="pick" id="t2-pickBtn">Elegir archivo</button>
+        <small>Vídeo MP4, WebM o MOV, o imagen JPG, PNG o WebP. Hasta 50 MB. Todo se procesa en tu navegador.</small>
       </div>
-      <div class="share-preview">
-        <div class="share-cover">
-          <img id="shareCoverImg" src="" alt="">
-          <i id="shareCoverPlaceholder" class="fas fa-compact-disc" aria-hidden="true"></i>
-        </div>
-        <div class="share-track-meta">
-          <h3 id="shareTrackTitle"></h3>
-          <p id="shareTrackArtist"></p>
+
+      <div class="stage__video" id="t2-stageVideo" hidden>
+        <video id="t2-video" playsinline muted preload="auto" hidden></video>
+        <img id="t2-image" alt="" hidden>
+        <div class="crop" id="t2-crop">
+          <div class="crop__shade crop__shade--top"    id="t2-shadeTop"></div>
+          <div class="crop__shade crop__shade--bottom" id="t2-shadeBottom"></div>
+          <div class="crop__shade crop__shade--left"   id="t2-shadeLeft"></div>
+          <div class="crop__shade crop__shade--right"  id="t2-shadeRight"></div>
+          <div class="crop__frame" id="t2-cropFrame" title="Arrastra para mover">
+            <span class="crop__label" id="t2-cropLabel">512 × 512</span>
+          </div>
+          <div class="crop__handle crop__handle--tl" data-corner="tl" aria-label="Esquina superior izquierda"></div>
+          <div class="crop__handle crop__handle--tr" data-corner="tr" aria-label="Esquina superior derecha"></div>
+          <div class="crop__handle crop__handle--bl" data-corner="bl" aria-label="Esquina inferior izquierda"></div>
+          <div class="crop__handle crop__handle--br" data-corner="br" aria-label="Esquina inferior derecha"></div>
         </div>
       </div>
-      <div class="share-progress" aria-live="polite">
-        <div class="share-progress-track" role="progressbar" aria-label="Descarga de la canción" aria-valuemin="0" aria-valuemax="100">
-          <div id="shareProgressFill" class="share-progress-fill"></div>
-        </div>
-        <p id="shareStatus">Preparando archivo…</p>
-      </div>
-      <div class="modal-footer share-footer">
-        <button id="btnCancelShare" class="btn-secondary" type="button">Cancelar</button>
-        <button id="btnShareNow" class="btn-primary hidden" type="button">
-          <i class="fas fa-share-nodes"></i>
-          Compartir ahora
+
+      <div class="player" id="t2-player" hidden>
+        <button type="button" class="player__btn" id="t2-playBtn" aria-label="Reproducir">
+          <svg id="t2-playIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"/></svg>
+          <svg id="t2-pauseIcon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="display:none"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
         </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL DE CONFIGURACIÓN DEL TOKEN (OPCIÓN 1) -->
-  <div id="tokenModal" class="modal-overlay hidden">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h2 class="modal-title"><i class="fab fa-telegram-plane text-telegram"></i> Conectar Bot de Telegram</h2>
-        <button id="btnCloseModal" class="modal-close-btn">&times;</button>
-      </div>
-
-      <div class="modal-body">
-        <p class="modal-desc">
-          Pega el <strong>Token HTTP API</strong> de tu bot creado con <code>@BotFather</code>. Se guardará de forma segura en tu navegador.
-        </p>
-
-        <div class="input-wrapper">
-          <input type="password" id="tokenInput" placeholder="Ej: 123456789:ABCdefGhIJKlmNoPQRstuv..." autocomplete="off">
-          <button type="button" id="btnToggleTokenVisibility" class="btn-eye" title="Mostrar/Ocultar">
-            <i class="fas fa-eye"></i>
-          </button>
+        <div class="player__scrub">
+          <div class="scrubber-wrap">
+            <input type="range" class="scrubber" id="t2-scrubber" min="0" max="0" step="0.01" value="0" aria-label="Posición del vídeo">
+            <div class="scrubber-marks" id="t2-scrubberMarks" aria-hidden="true"></div>
+          </div>
+          <span class="player__time"><span id="t2-timeNow">0:00</span> / <span id="t2-timeTotal">0:00</span></span>
         </div>
-
-        <div id="tokenError" class="error-msg hidden"></div>
-
-        <div class="tip-box">
-          <i class="fas fa-info-circle"></i>
-          <span>Solo debes abrir Telegram, enviarle canciones en formato MP3 a tu bot y pulsar <strong>Sincronizar</strong>.</span>
+        <div class="player__marks">
+          <button type="button" class="mark-btn" id="t2-markStartBtn">Marcar inicio</button>
+          <button type="button" class="mark-btn" id="t2-markEndBtn">Marcar fin</button>
         </div>
       </div>
+    </section>
 
-      <div class="modal-footer">
-        <button id="btnDisconnect" class="btn-secondary hidden">Desconectar Bot</button>
-        <button id="btnSaveToken" class="btn-primary">Guardar y Conectar</button>
-      </div>
+    <div class="file-actions" id="t2-fileActions" hidden>
+      <button type="button" class="ghost" id="t2-clearBtn">Cambiar archivo</button>
     </div>
+
+    <section class="timeline-wrap" id="t2-timelineWrap" hidden aria-label="Tramo de tiempo">
+      <div class="timeline-labels">
+        <span><b id="t2-tStart">0.0 s</b> inicio</span>
+        <span class="timeline-length"><b id="t2-tLength">3.0 s</b> de 5 máx.</span>
+        <span>fin <b id="t2-tEnd">3.0 s</b></span>
+      </div>
+      <div class="timeline" id="t2-timeline">
+        <div class="timeline__track"></div>
+        <div class="timeline__range" id="t2-timelineRange"></div>
+        <div class="timeline__handle" data-edge="start" id="t2-handleStart" role="slider" tabindex="0"
+             aria-label="Inicio del recorte" aria-valuemin="0" aria-valuenow="0"></div>
+        <div class="timeline__handle" data-edge="end" id="t2-handleEnd" role="slider" tabindex="0"
+             aria-label="Fin del recorte" aria-valuenow="3"></div>
+      </div>
+    </section>
+
+    <p class="status" id="t2-status" role="status" aria-live="polite" hidden></p>
+
+    <div class="results" id="t2-results"></div>
+
   </div>
 
-  <!-- Toast de Notificaciones -->
-  <div id="toast" class="toast"></div>
+  <button type="button" class="fab fab--options" id="t2-fab"
+          aria-label="Opciones" aria-expanded="false" aria-controls="t2-fabPanel" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="4" y1="7" x2="20" y2="7"/>
+      <circle cx="9" cy="7" r="2.5" fill="currentColor" stroke="none"/>
+      <line x1="4" y1="17" x2="20" y2="17"/>
+      <circle cx="15" cy="17" r="2.5" fill="currentColor" stroke="none"/>
+    </svg>
+    <span class="fab__badge" id="t2-fabBadge">—</span>
+  </button>
 
-  <!-- Lógica JavaScript -->
-  <script src="app.js"></script>
+  <button type="button" class="fab fab--create" id="t2-buildBtn" aria-label="Crear sticker" hidden>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 2.5c.6 3.9 2.1 5.4 6 6 -3.9.6-5.4 2.1-6 6 -.6-3.9-2.1-5.4-6-6 3.9-.6 5.4-2.1 6-6z" fill="currentColor" stroke="none"/>
+      <path d="M18.5 14.5c.3 1.9 1 2.6 2.9 2.9 -1.9.3-2.6 1-2.9 2.9 -.3-1.9-1-2.6-2.9-2.9 1.9-.3 2.6-1 2.9-2.9z" fill="currentColor" stroke="none"/>
+      <path d="M6.5 15c.25 1.4.75 1.9 2.15 2.15 -1.4.25-1.9.75-2.15 2.15 -.25-1.4-.75-1.9-2.15-2.15 1.4-.25 1.9-.75 2.15-2.15z" fill="currentColor" stroke="none"/>
+    </svg>
+  </button>
+
+  <div class="fab-panel" id="t2-fabPanel" role="dialog" aria-label="Opciones" hidden>
+    <label class="field" id="t2-fpsField">
+      <span>Fotogramas por segundo</span>
+      <select id="t2-fps">
+        <option value="8">8 fps — ligero</option>
+        <option value="12" selected>12 fps — equilibrado</option>
+        <option value="15">15 fps — fluido</option>
+      </select>
+    </label>
+
+    <div class="fab-panel__grid">
+      <div class="info">
+        <span class="info__key" id="t2-keyA">Vídeo</span>
+        <span class="info__val" id="t2-valA">—</span>
+      </div>
+      <div class="info">
+        <span class="info__key" id="t2-keyB">Duración</span>
+        <span class="info__val" id="t2-valB">—</span>
+      </div>
+      <div class="info">
+        <span class="info__key" id="t2-keyC">Fotogramas</span>
+        <span class="info__val" id="t2-valC">—</span>
+      </div>
+      <div class="info">
+        <span class="info__key">Tamaño máx.</span>
+        <span class="info__val" id="t2-valD">—</span>
+      </div>
+    </div>
+
+    <p class="fab-panel__note" id="t2-fabNote">
+      Suelta un MP4 corto, mueve el cuadrado por donde quieras y elige hasta 5 segundos. Te devolvemos un WebP animado de 512 × 512 listo para WhatsApp.
+    </p>
+  </div>
+</section>
+
+
+  <script src="./app.js" defer></script>
 </body>
 </html>
