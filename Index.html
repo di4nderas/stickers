@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reproductor Telegram</title>
+  
+  <!-- Iconos Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Hoja de Estilos CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <main class="player-app" id="playerApp">
+    <header class="player-header">
+      <div class="bot-status" id="botStatusBadge">
+        <span class="status-dot"></span>
+        <span id="botNameLabel">Telegram Bot</span>
+      </div>
+      <div class="header-actions">
+        <button id="btnSync" class="btn-icon" title="Sincronizar canciones nuevas" aria-label="Sincronizar">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+        <button id="btnSettings" class="btn-icon" title="Configurar Token" aria-label="Configurar Token">
+          <i class="fas fa-cog"></i>
+        </button>
+      </div>
+    </header>
+
+    <div class="app-content">
+      <section class="app-view player-screen active" id="playerScreen" aria-label="Reproductor">
+        <div class="now-playing-label">REPRODUCIENDO DESDE TELEGRAM</div>
+
+        <section class="cover-wrapper">
+          <img id="coverImg" class="cover-img" src="" alt="Carátula del álbum">
+          <div id="coverPlaceholder" class="cover-placeholder">
+            <i class="fas fa-compact-disc"></i>
+          </div>
+        </section>
+
+        <section class="track-info">
+          <h1 id="trackTitle" class="track-name">Esperando bot...</h1>
+          <p id="trackArtist" class="track-artist">―</p>
+        </section>
+
+        <section class="mode-controls" aria-label="Modos de reproducción">
+          <button id="btnFavorite" class="btn-ctrl btn-favorite" type="button" title="Añadir a Favoritos" aria-label="Añadir canción a Favoritos" aria-pressed="false">
+            <i class="far fa-heart"></i>
+          </button>
+          <button id="btnShuffle" class="btn-ctrl" title="Aleatorio" aria-label="Modo aleatorio" aria-pressed="false">
+            <i class="fas fa-random"></i>
+          </button>
+          <button id="btnRepeat" class="btn-ctrl" title="Repetir" aria-label="Modo repetición" aria-pressed="false">
+            <i class="fas fa-redo"></i>
+          </button>
+          <button id="btnShare" class="btn-ctrl" type="button" title="Compartir canción" aria-label="Compartir canción">
+            <i class="fas fa-share-nodes"></i>
+          </button>
+        </section>
+
+        <section class="progress-section">
+          <div id="progressBar" class="progress-bar-container" role="progressbar" aria-label="Progreso">
+            <div id="progressFill" class="progress-fill"></div>
+          </div>
+          <div class="time-indicators">
+            <span id="currentTime">0:00</span>
+            <span id="totalTime">0:00</span>
+          </div>
+        </section>
+
+        <section class="controls" aria-label="Controles de reproducción">
+          <button id="volumeBtn" class="volume-btn" type="button" title="Silenciar" aria-label="Silenciar">
+            <i class="fas fa-volume-up"></i>
+          </button>
+          <button id="btnPrev" class="btn-ctrl" title="Pista anterior" aria-label="Pista anterior">
+            <i class="fas fa-step-backward"></i>
+          </button>
+          <button id="btnPlay" class="btn-play" title="Reproducir" aria-label="Reproducir o pausar">
+            <i class="fas fa-play"></i>
+          </button>
+          <button id="btnNext" class="btn-ctrl" title="Siguiente pista" aria-label="Siguiente pista">
+            <i class="fas fa-step-forward"></i>
+          </button>
+        </section>
+      </section>
+
+      <section class="app-view collection-screen" id="artistsScreen" aria-label="Artistas">
+        <div class="collection-heading">
+          <div>
+            <p class="now-playing-label">EXPLORAR</p>
+            <h1>Artistas</h1>
+          </div>
+          <span id="artistCount" class="collection-count"></span>
+        </div>
+        <div id="artistList" class="collection-list"></div>
+        <section id="artistTracksPanel" class="collection-detail hidden" aria-label="Canciones del artista">
+          <div class="detail-toolbar">
+            <button id="btnBackArtists" class="btn-icon" type="button" aria-label="Volver a artistas" title="Volver">
+              <i class="fas fa-arrow-left"></i>
+            </button>
+            <h2 id="artistTrackTitle"></h2>
+          </div>
+          <div id="artistTrackList" class="playlist-tracks"></div>
+        </section>
+      </section>
+
+      <section class="app-view collection-screen" id="favoritesScreen" aria-label="Canciones favoritas">
+        <div class="collection-heading">
+          <div>
+            <p class="now-playing-label">TU COLECCIÓN</p>
+            <h1>Favoritos</h1>
+          </div>
+          <span id="favoriteCount" class="collection-count"></span>
+        </div>
+        <div id="favoriteTrackList" class="playlist-tracks"></div>
+      </section>
+
+      <section class="app-view collection-screen" id="playlistsScreen" aria-label="Playlists">
+        <div class="collection-heading">
+          <div>
+            <p class="now-playing-label">TU MÚSICA</p>
+            <h1>Playlists</h1>
+          </div>
+          <div class="collection-actions">
+            <button id="btnBackup" class="btn-icon" type="button" title="Crear backup de canciones y playlists" aria-label="Crear backup">
+              <i class="fas fa-cloud-arrow-up"></i>
+            </button>
+            <button id="btnCreatePlaylist" class="btn-icon" type="button" title="Crear playlist" aria-label="Crear playlist">
+              <i class="fas fa-plus"></i>
+            </button>
+          </div>
+        </div>
+        <div class="playlist-header-row">
+          <span id="playlistCount" class="playlist-count">0 canciones</span>
+          <span class="source-tag"><i class="fab fa-telegram-plane"></i> Telegram</span>
+        </div>
+        <div id="playlistOverview" class="collection-list"></div>
+        <section id="playlistDetail" class="collection-detail hidden" aria-label="Detalle de playlist">
+          <button id="btnBackPlaylists" class="btn-icon playlist-detail-back" type="button" aria-label="Volver a playlists" title="Volver">
+            <i class="fas fa-arrow-left"></i>
+          </button>
+          <div id="playlistHeroArt" class="playlist-hero-art"></div>
+          <div class="playlist-hero-copy">
+            <p class="playlist-owner">TU COLECCIÓN</p>
+            <h2 id="selectedPlaylistTitle"></h2>
+            <span id="selectedPlaylistCount" class="collection-count"></span>
+          </div>
+          <div class="playlist-detail-actions">
+            <button id="btnPlaylistShuffle" class="btn-ctrl" type="button" title="Reproducir aleatoriamente" aria-label="Reproducir playlist aleatoriamente" aria-pressed="false">
+              <i class="fas fa-shuffle"></i>
+            </button>
+            <button id="btnDeletePlaylist" class="btn-icon danger-action" type="button" aria-label="Eliminar playlist" title="Eliminar playlist">
+              <i class="fas fa-trash"></i>
+            </button>
+            <button id="btnPlaylistPlay" class="playlist-play-button" type="button" aria-label="Reproducir playlist">
+              <i class="fas fa-play"></i>
+            </button>
+          </div>
+          <button id="btnAddTracks" class="add-tracks-button" type="button">
+            <i class="fas fa-plus"></i>
+            Añadir canciones
+          </button>
+          <div id="playlistTrackList" class="playlist-tracks"></div>
+        </section>
+      </section>
+
+      <section class="app-view collection-screen search-screen" id="searchScreen" aria-label="Buscar canciones">
+        <div class="collection-heading">
+          <div>
+            <p class="now-playing-label">BIBLIOTECA</p>
+            <h1>Buscar</h1>
+          </div>
+        </div>
+        <label class="search-field">
+          <i class="fas fa-search" aria-hidden="true"></i>
+          <input id="searchInput" type="search" placeholder="Canción o artista" autocomplete="off" aria-label="Buscar canciones o artistas">
+        </label>
+        <span id="searchCount" class="collection-count"></span>
+        <div id="searchTrackList" class="playlist-tracks"></div>
+      </section>
+    </div>
+
+    <div id="miniPlayer" class="mini-player hidden">
+      <button id="btnMiniPlayerOpen" class="mini-player-main" type="button" aria-label="Abrir Ahora suena">
+        <span class="mini-player-artwork">
+          <img id="miniPlayerCover" src="" alt="" class="hidden">
+          <i id="miniPlayerPlaceholder" class="fas fa-music" aria-hidden="true"></i>
+        </span>
+        <span class="mini-player-copy">
+          <span id="miniPlayerTitle" class="mini-player-title"></span>
+          <span id="miniPlayerArtist" class="mini-player-artist"></span>
+        </span>
+      </button>
+      <button id="btnMiniPlayerToggle" class="mini-player-toggle" type="button" aria-label="Reproducir o pausar">
+        <i class="fas fa-play"></i>
+      </button>
+    </div>
+
+    <nav class="bottom-nav" aria-label="Vistas del reproductor">
+      <button id="btnViewPlayer" class="nav-tab active" type="button" aria-label="Ahora suena" aria-current="page">
+        <i class="fas fa-play-circle"></i>
+        <span>Ahora suena</span>
+      </button>
+      <button id="btnViewArtists" class="nav-tab" type="button" aria-label="Ver artistas">
+        <i class="fas fa-user"></i>
+        <span>Artistas</span>
+      </button>
+      <button id="btnViewFavorites" class="nav-tab" type="button" aria-label="Ver favoritos">
+        <i class="fas fa-heart"></i>
+        <span>Favoritos</span>
+      </button>
+      <button id="btnViewPlaylists" class="nav-tab" type="button" aria-label="Ver playlists">
+        <i class="fas fa-list-ul"></i>
+        <span>Playlists</span>
+      </button>
+      <button id="btnViewSearch" class="nav-tab" type="button" aria-label="Buscar">
+        <i class="fas fa-search"></i>
+        <span>Buscar</span>
+      </button>
+    </nav>
+  </main>
+
+  <div id="playlistModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="playlistModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="playlistModalTitle" class="modal-title">Crear playlist</h2>
+        <button id="btnClosePlaylistModal" class="modal-close-btn" type="button" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label" for="playlistNameInput">Nombre</label>
+        <input id="playlistNameInput" class="text-field" type="text" maxlength="48" placeholder="Ej. Románticas" autocomplete="off">
+        <div id="playlistNameError" class="error-msg hidden"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnCancelPlaylist" class="btn-secondary" type="button">Cancelar</button>
+        <button id="btnSavePlaylist" class="btn-primary" type="button">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="addTracksModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="addTracksTitle">
+    <div class="modal-card add-tracks-modal">
+      <div class="modal-header">
+        <h2 id="addTracksTitle" class="modal-title">Añadir canciones</h2>
+        <button id="btnCloseAddTracks" class="modal-close-btn" type="button" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body add-tracks-body">
+        <label class="search-field picker-search">
+          <i class="fas fa-search" aria-hidden="true"></i>
+          <input id="trackPickerSearch" type="search" placeholder="Filtrar canciones" autocomplete="off" aria-label="Filtrar canciones">
+        </label>
+        <div id="trackPickerList" class="track-picker-list"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnCancelAddTracks" class="btn-secondary" type="button">Cancelar</button>
+        <button id="btnConfirmAddTracks" class="btn-primary" type="button">Añadir seleccionadas</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="shareModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+    <div class="modal-card share-dialog">
+      <div class="modal-header">
+        <h2 id="shareModalTitle" class="modal-title">Compartir canción</h2>
+        <button id="btnCloseShare" class="modal-close-btn" type="button" aria-label="Cancelar descarga">&times;</button>
+      </div>
+      <div class="share-preview">
+        <div class="share-cover">
+          <img id="shareCoverImg" src="" alt="">
+          <i id="shareCoverPlaceholder" class="fas fa-compact-disc" aria-hidden="true"></i>
+        </div>
+        <div class="share-track-meta">
+          <h3 id="shareTrackTitle"></h3>
+          <p id="shareTrackArtist"></p>
+        </div>
+      </div>
+      <div class="share-progress" aria-live="polite">
+        <div class="share-progress-track" role="progressbar" aria-label="Descarga de la canción" aria-valuemin="0" aria-valuemax="100">
+          <div id="shareProgressFill" class="share-progress-fill"></div>
+        </div>
+        <p id="shareStatus">Preparando archivo…</p>
+      </div>
+      <div class="modal-footer share-footer">
+        <button id="btnCancelShare" class="btn-secondary" type="button">Cancelar</button>
+        <button id="btnShareNow" class="btn-primary hidden" type="button">
+          <i class="fas fa-share-nodes"></i>
+          Compartir ahora
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIGURACIÓN DEL TOKEN (OPCIÓN 1) -->
+  <div id="tokenModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title"><i class="fab fa-telegram-plane text-telegram"></i> Conectar Bot de Telegram</h2>
+        <button id="btnCloseModal" class="modal-close-btn">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-desc">
+          Pega el <strong>Token HTTP API</strong> de tu bot creado con <code>@BotFather</code>. Se guardará de forma segura en tu navegador.
+        </p>
+
+        <div class="input-wrapper">
+          <input type="password" id="tokenInput" placeholder="Ej: 123456789:ABCdefGhIJKlmNoPQRstuv..." autocomplete="off">
+          <button type="button" id="btnToggleTokenVisibility" class="btn-eye" title="Mostrar/Ocultar">
+            <i class="fas fa-eye"></i>
+          </button>
+        </div>
+
+        <div id="tokenError" class="error-msg hidden"></div>
+
+        <div class="tip-box">
+          <i class="fas fa-info-circle"></i>
+          <span>Solo debes abrir Telegram, enviarle canciones en formato MP3 a tu bot y pulsar <strong>Sincronizar</strong>.</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button id="btnDisconnect" class="btn-secondary hidden">Desconectar Bot</button>
+        <button id="btnSaveToken" class="btn-primary">Guardar y Conectar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de Notificaciones -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Lógica JavaScript -->
+  <script src="app.js"></script>
+</body>
+</html>
