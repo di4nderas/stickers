@@ -1,4 +1,4 @@
-const { getConfig, sendJson, supabaseRequest, telegramRequest } = require('../lib/stickers');
+const { getConfig, readStickerCatalog, sendJson, telegramRequest } = require('../lib/stickers');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -13,22 +13,17 @@ module.exports = async function handler(req, res) {
 
   try {
     const config = getConfig();
-    const rows = await supabaseRequest(
-      config,
-      `stickers?${new URLSearchParams({
-        select: 'telegram_file_id,filename',
-        id: `eq.${id}`,
-        status: 'eq.approved',
-        limit: '1'
-      })}`
-    );
-    if (!rows.length) return sendJson(res, 404, { error: 'Sticker no encontrado.' });
-    if (!rows[0].telegram_file_id) return sendJson(res, 404, { error: 'El archivo de este sticker todavía no está disponible.' });
+    const { catalog } = await readStickerCatalog(config);
+    const sticker = catalog.stickers.find(item => item.id === id && item.status === 'approved');
+    if (!sticker) return sendJson(res, 404, { error: 'Sticker no encontrado.' });
+    if (!sticker.telegram_file_id) {
+      return sendJson(res, 404, { error: 'El archivo de este sticker todavía no está disponible.' });
+    }
 
     const file = await telegramRequest(config, 'getFile', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file_id: rows[0].telegram_file_id })
+      body: JSON.stringify({ file_id: sticker.telegram_file_id })
     });
     const imageResponse = await fetch(
       `https://api.telegram.org/file/bot${config.telegramToken}/${file.file_path}`

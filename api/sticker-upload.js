@@ -4,7 +4,7 @@ const {
   getIpHash,
   requireSameOrigin,
   sendJson,
-  supabaseRequest,
+  updateStickerCatalog,
   telegramRequest
 } = require('../lib/stickers');
 
@@ -19,6 +19,12 @@ function getRequestBody(req) {
 function sanitizeName(value, fallback) {
   const name = typeof value === 'string' ? value.trim() : '';
   return (name || fallback).replace(/[\r\n]/g, ' ').slice(0, 120);
+}
+
+function uploadError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 function isAnimatedWebp(bytes) {
@@ -41,8 +47,10 @@ module.exports = async function handler(req, res) {
   }
   if (!requireSameOrigin(req, res)) return;
 
-  let rowId = null;
+  let stickerId = null;
   let config;
+  let reservationCreated = false;
+  let telegramStored = false;
   try {
     config = getConfig();
     const body = getRequestBody(req);
@@ -59,65 +67,83 @@ module.exports = async function handler(req, res) {
     }
 
     const digest = crypto.createHash('sha256').update(bytes).digest('hex');
-    const rateLimit = await supabaseRequest(config, 'rpc/claim_sticker_upload', {
-      method: 'POST',
-      body: JSON.stringify({ p_ip_hash: getIpHash(req, config.supabaseKey), p_limit: 120, p_window_seconds: 3600 })
-    });
-    if (rateLimit !== true) {
-      return sendJson(res, 429, { error: 'Se alcanzó el límite temporal de cargas. Inténtalo más tarde.' });
-    }
-
+    stickerId = crypto.randomUUID();
     const filename = sanitizeName(body.filename, `sticker-${digest.slice(0, 12)}.webp`)
       .replace(/[\\/:*?"<>|]/g, '_');
-    const insertRows = await supabaseRequest(config, 'stickers?on_conflict=content_sha256', {
-      method: 'POST',
-      headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
-      body: JSON.stringify({
+    const packTitle = sanitizeName(body.packTitle, 'Pack sin nombre');
+    const author = sanitizeName(body.author, 'Anónimo');
+    const createdAt = new Date().toISOString();
+    const ipHash = getIpHash(req, config.githubToken);
+
+    await updateStickerCatalog(config, `Registrar sticker pendiente ${stickerId}`, catalog => {
+      reservationCreated = false;
+      if (catalog.stickers.some(sticker => sticker.content_sha256 === digest)) {
+        throw uploadError('DUPLICATE', 'Este sticker ya existe en el historial.');
+      }
+
+      const now = Date.now();
+      catalog.uploadLimits = catalog.uploadLimits.filter(limit =>
+        now - Date.parse(limit.window_started_at) < 24 * 60 * 60 * 1000
+      );
+      let limit = catalog.uploadLimits.find(item => item.ip_hash === ipHash);
+      if (!limit || now - Date.parse(limit.window_started_at) >= 60 * 60 * 1000) {
+        limit = { ip_hash: ipHash, window_started_at: createdAt, request_count: 0 };
+        catalog.uploadLimits = catalog.uploadLimits.filter(item => item.ip_hash !== ipHash);
+        catalog.uploadLimits.push(limit);
+      }
+      if (limit.request_count >= 120) {
+        throw uploadError('RATE_LIMIT', 'Se alcanzó el límite temporal de cargas. Inténtalo más tarde.');
+      }
+      limit.request_count++;
+
+      catalog.stickers.push({
+        id: stickerId,
         content_sha256: digest,
+        telegram_file_id: null,
+        telegram_message_id: null,
         filename,
-        pack_title: sanitizeName(body.packTitle, 'Pack sin nombre'),
-        author: sanitizeName(body.author, 'Anónimo'),
+        pack_title: packTitle,
+        author,
         is_animated: isAnimatedWebp(bytes),
-        status: 'uploading'
-      })
+        status: 'uploading',
+        created_at: createdAt
+      });
+      reservationCreated = true;
     });
-    if (!insertRows.length) {
-      return sendJson(res, 409, { error: 'Este sticker ya existe en el historial.' });
-    }
-    rowId = insertRows[0].id;
 
     const document = new FormData();
     document.append('chat_id', config.telegramChatId);
     document.append('document', new Blob([bytes], { type: 'image/webp' }), filename);
-    document.append('caption', `Sticker pendiente de revisión\nPack: ${sanitizeName(body.packTitle, 'Pack sin nombre')}`);
+    document.append('caption', `Sticker pendiente de revisión\nPack: ${packTitle}`);
     const telegramMessage = await telegramRequest(config, 'sendDocument', {
       method: 'POST',
       body: document
     });
     const fileId = telegramMessage.document && telegramMessage.document.file_id;
     if (!fileId) throw new Error('Telegram no devolvió el identificador del archivo.');
+    telegramStored = true;
 
-    await supabaseRequest(config, `stickers?id=eq.${rowId}`, {
-      method: 'PATCH',
-      headers: { Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        telegram_file_id: fileId,
-        telegram_message_id: telegramMessage.message_id,
-        status: 'pending'
-      })
+    await updateStickerCatalog(config, `Guardar archivo Telegram del sticker ${stickerId}`, catalog => {
+      const sticker = catalog.stickers.find(item => item.id === stickerId);
+      if (!sticker) throw new Error('El sticker reservado no aparece en el catálogo.');
+      sticker.telegram_file_id = fileId;
+      sticker.telegram_message_id = telegramMessage.message_id;
+      sticker.status = 'pending';
     });
 
-    return sendJson(res, 201, { id: rowId, status: 'pending' });
+    return sendJson(res, 201, { id: stickerId, status: 'pending' });
   } catch (error) {
-    if (rowId && config) {
+    if (stickerId && config && reservationCreated && !telegramStored) {
       try {
-        await supabaseRequest(config, `stickers?id=eq.${rowId}`, { method: 'DELETE' });
+        await updateStickerCatalog(config, `Quitar carga fallida ${stickerId}`, catalog => {
+          catalog.stickers = catalog.stickers.filter(sticker => sticker.id !== stickerId);
+        });
       } catch (cleanupError) {
         console.error('No se pudo limpiar el registro de carga fallida:', cleanupError.message);
       }
     }
     console.error('No se pudo archivar el sticker:', error.message);
-    const status = error.message && error.message.includes('claim_sticker_upload') ? 503 : 502;
+    const status = error.code === 'DUPLICATE' ? 409 : error.code === 'RATE_LIMIT' ? 429 : 502;
     return sendJson(res, status, { error: error.message || 'No se pudo guardar el sticker.' });
   }
 };
