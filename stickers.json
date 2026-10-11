@@ -16,13 +16,13 @@
     {
       "id": "5d658db4-c9ad-4c1b-9d32-1abb5f861abf",
       "content_sha256": "d7b13ac3306574501fdb847f77621edcef356261ce0b08718c0614af7c7be807",
-      "telegram_file_id": null,
-      "telegram_message_id": null,
+      "telegram_file_id": "CAACAgEAAxkDAAMRaswbu1Yzzm8mCE_gRqV65Y1NSOUAApwHAAIh4mBGrTDpg-a2bsA9BA",
+      "telegram_message_id": 17,
       "filename": "21ed4f0ed02805fb8f050f4b487a6e40.webp",
       "pack_title": "Mi pack 1 (animados)",
       "author": "Yo",
       "is_animated": true,
-      "status": "uploading",
+      "status": "pending",
       "created_at": "2026-10-11T23:28:57.456Z"
     }
   ],
