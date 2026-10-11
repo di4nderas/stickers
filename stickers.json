@@ -24,13 +24,25 @@
       "is_animated": true,
       "status": "pending",
       "created_at": "2026-10-11T23:28:57.456Z"
+    },
+    {
+      "id": "2f914334-6310-4939-b0cd-53d8331dc867",
+      "content_sha256": "5b1955ea2ccd08e35686db05a486c148c798ba98bf8c5fc51a00fda18f11eb77",
+      "telegram_file_id": null,
+      "telegram_message_id": null,
+      "filename": "juan316_corazon_4K.webp",
+      "pack_title": "Mi pack 2 (estáticos)",
+      "author": "Yo",
+      "is_animated": false,
+      "status": "uploading",
+      "created_at": "2026-10-11T23:29:03.195Z"
     }
   ],
   "uploadLimits": [
     {
       "ip_hash": "68abfe6e04e511b34a5aa283019624a83786d38ff23a8e1f2c5f2da477331e54",
       "window_started_at": "2026-10-11T23:28:53.042Z",
-      "request_count": 2
+      "request_count": 3
     }
   ]
 }
