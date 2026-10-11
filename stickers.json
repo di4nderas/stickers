@@ -40,13 +40,13 @@
     {
       "id": "7d2f9690-b950-4aad-9529-ec7ef12938c8",
       "content_sha256": "897e283eb675442a8d1b79c2cc7832d43e08c4192b480fb94ecc3e5da2b88f76",
-      "telegram_file_id": null,
-      "telegram_message_id": null,
+      "telegram_file_id": "CAACAgEAAxkDAAMYaswfmr0wCMa-hn91pBLbAAHubJTSAAKlBwACIeJgRke6fn5BZVLWPQQ",
+      "telegram_message_id": 24,
       "filename": "final_prompt_transparente.webp",
       "pack_title": "Mi pack 2 (estáticos)",
       "author": "Yo",
       "is_animated": false,
-      "status": "uploading",
+      "status": "pending",
       "created_at": "2026-10-11T23:45:28.947Z"
     }
   ],
