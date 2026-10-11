@@ -10,7 +10,7 @@
       "pack_title": "Mi pack 1 (animados)",
       "author": "Yo",
       "is_animated": true,
-      "status": "pending",
+      "status": "approved",
       "created_at": "2026-10-11T23:45:16.216Z"
     },
     {
@@ -22,7 +22,7 @@
       "pack_title": "Mi pack 1 (animados)",
       "author": "Yo",
       "is_animated": true,
-      "status": "pending",
+      "status": "approved",
       "created_at": "2026-10-11T23:45:20.895Z"
     },
     {
@@ -34,7 +34,7 @@
       "pack_title": "Mi pack 2 (estáticos)",
       "author": "Yo",
       "is_animated": false,
-      "status": "pending",
+      "status": "approved",
       "created_at": "2026-10-11T23:45:25.643Z"
     },
     {
@@ -46,7 +46,7 @@
       "pack_title": "Mi pack 2 (estáticos)",
       "author": "Yo",
       "is_animated": false,
-      "status": "pending",
+      "status": "approved",
       "created_at": "2026-10-11T23:45:28.947Z"
     },
     {
@@ -58,7 +58,7 @@
       "pack_title": "Mi pack 2 (estáticos)",
       "author": "Yo",
       "is_animated": false,
-      "status": "pending",
+      "status": "approved",
       "created_at": "2026-10-11T23:45:32.030Z"
     },
     {
@@ -70,7 +70,7 @@
       "pack_title": "Mi pack 2 (estáticos)",
       "author": "Yo",
       "is_animated": false,
-      "status": "pending",
+      "status": "approved",
       "created_at": "2026-10-11T23:45:35.542Z"
     }
   ],
