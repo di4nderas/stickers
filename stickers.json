@@ -36,13 +36,25 @@
       "is_animated": false,
       "status": "pending",
       "created_at": "2026-10-11T23:05:56.412Z"
+    },
+    {
+      "id": "59818096-0867-449e-ab0f-64ce117c9e35",
+      "content_sha256": "ffb1dc9a3d0c8819fe04f2d4012cee2027230331e03099bbd118b6aa434c32fd",
+      "telegram_file_id": null,
+      "telegram_message_id": null,
+      "filename": "jesus_te_ama_final.webp",
+      "pack_title": "Mi pack",
+      "author": "Yo",
+      "is_animated": false,
+      "status": "uploading",
+      "created_at": "2026-10-11T23:05:59.804Z"
     }
   ],
   "uploadLimits": [
     {
       "ip_hash": "68abfe6e04e511b34a5aa283019624a83786d38ff23a8e1f2c5f2da477331e54",
       "window_started_at": "2026-10-11T22:53:42.737Z",
-      "request_count": 4
+      "request_count": 5
     }
   ]
 }
