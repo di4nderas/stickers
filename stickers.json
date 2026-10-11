@@ -1,19 +1,6 @@
 {
   "version": 1,
-  "stickers": [
-    {
-      "id": "ff3680fa-fdbe-4ea9-8437-c3d99eef46fb",
-      "content_sha256": "13dd76fa7d78645bb3e92b1e9735a375dfa9bad59638ad3624c4b206159eeec7",
-      "telegram_file_id": null,
-      "telegram_message_id": null,
-      "filename": "amen_transparente_4K.webp",
-      "pack_title": "Mi pack",
-      "author": "Yo",
-      "is_animated": false,
-      "status": "uploading",
-      "created_at": "2026-10-11T22:53:42.737Z"
-    }
-  ],
+  "stickers": [],
   "uploadLimits": [
     {
       "ip_hash": "68abfe6e04e511b34a5aa283019624a83786d38ff23a8e1f2c5f2da477331e54",
