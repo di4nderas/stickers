@@ -119,7 +119,7 @@ module.exports = async function handler(req, res) {
       method: 'POST',
       body: document
     });
-    const fileId = telegramMessage.document && telegramMessage.document.file_id;
+    const fileId = telegramMessage.document?.file_id || telegramMessage.sticker?.file_id;
     if (!fileId) throw new Error('Telegram no devolvió el identificador del archivo.');
     telegramStored = true;
 
