@@ -14,10 +14,12 @@ Sitio estático servido por Vercel, con funciones Node.js en `api/`. El cliente 
    - `GITHUB_CATALOG_PATH`: `stickers.json`.
    - `TELEGRAM_BOT_TOKEN`: token de BotFather. Es secreto.
    - `TELEGRAM_CHAT_ID`: ID de tu chat privado con el bot.
+   - `STICKER_ADMIN_PASSWORD`: contraseña exclusiva del panel de administración, con al menos 16 caracteres. Guárdala únicamente en Vercel como variable secreta; no la agregues a GitHub ni la compartas.
 4. Si aún no obtuviste el ID privado, configura temporalmente `TELEGRAM_SETUP_KEY` en Vercel, abre el bot, pulsa **Start** y envíale `/start`. Consulta `/api/telegram-setup` con la clave para obtener `privateChats[].chatId`; luego agrega `TELEGRAM_CHAT_ID`, vuelve a desplegar y elimina `TELEGRAM_SETUP_KEY`.
-5. Cada nuevo sticker se guarda en Telegram y se agrega a `stickers.json` con estado `pending`. Para aprobarlo, edita ese archivo en GitHub y cambia el `status` de ese elemento a `approved`; guarda el cambio. Solo los stickers aprobados aparecen en la galería pública.
+5. Guarda los cambios y despliega de nuevo en Vercel para que las variables estén disponibles.
+6. Cada nuevo sticker se guarda en Telegram y se agrega a `stickers.json` con estado `pending`. Abre **Administrar stickers** en la aplicación e inicia sesión con `STICKER_ADMIN_PASSWORD`. Puedes aprobar los stickers uno por uno o seleccionar varios y aprobarlos en lote. Solo los stickers aprobados aparecen en la galería pública. La sesión administrativa vence después de 8 horas.
 
-El repositorio público permite que cualquiera lea el catálogo, pero solo las funciones de Vercel reciben el token de escritura de GitHub y el token de Telegram. La carga admite WebP de hasta 490 KB, evita duplicados y limita cada IP anonimizada a 120 envíos por hora. Nunca se guarda la IP en claro.
+El repositorio público permite que cualquiera lea el catálogo, pero solo las funciones de Vercel reciben el token de escritura de GitHub y el token de Telegram. Las acciones de administración se autentican en el servidor y la sesión usa una cookie `HttpOnly`; los stickers pendientes no se exponen a visitantes públicos. La carga admite WebP de hasta 490 KB, evita duplicados y limita cada IP anonimizada a 120 envíos por hora. Nunca se guarda la IP en claro.
 
 Cada sticker actualiza el archivo del catálogo en GitHub: primero se reserva para evitar duplicados y luego se guarda su identificador de Telegram. GitHub conserva el historial de esos cambios. Las imágenes permanecen en el chat privado de Telegram; visitantes de la web no tienen acceso al chat ni a los secretos.
 

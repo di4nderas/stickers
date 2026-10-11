@@ -107,6 +107,27 @@
         </svg>
       </div>
     </li>
+
+    <li class="wa-chat" data-tool="tool4" tabindex="0" role="button" aria-label="Administrar stickers">
+      <div class="wa-chat__avatar" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3 19 6v5c0 4.5-2.8 7.8-7 10-4.2-2.2-7-5.5-7-10V6z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+      </div>
+      <div class="wa-chat__body">
+        <p class="wa-chat__name">Administrar stickers</p>
+        <p class="wa-chat__last">Revisa y aprueba envíos pendientes</p>
+      </div>
+      <div class="wa-chat__meta">
+        <span class="wa-chat__time" data-tool-time="tool4"></span>
+        <svg class="wa-chat__mute" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M18 15V10a6 6 0 1 0-12 0v5l-2 2h16z"/>
+          <path d="M10 20a2 2 0 0 0 4 0"/>
+          <line x1="3" y1="3" x2="21" y2="21"/>
+        </svg>
+      </div>
+    </li>
   </ul>
 </div>
 
@@ -444,6 +465,51 @@ Suelta tus archivos o pulsa el clip. Cuando los tengas todos, pulsa el botón ve
     </div>
     <button type="button" class="gallery-create" id="t3-create" disabled>Crear pack seleccionado</button>
   </footer>
+</section>
+
+<!-- ============================================================
+     TOOL 4 - ADMINISTRACIÓN DE STICKERS
+     ============================================================ -->
+<section id="tool4" class="tool" aria-hidden="true">
+  <header class="tool-head">
+    <button type="button" class="tool-head__back" data-close="tool4" aria-label="Volver">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 12H5"/>
+        <path d="M12 19l-7-7 7-7"/>
+      </svg>
+    </button>
+    <h2>Administrar stickers</h2>
+  </header>
+
+  <main class="admin-board">
+    <div class="admin-intro">
+      <h3>Revisión de stickers</h3>
+      <p>Los stickers pendientes solo se muestran aquí. Aprueba cada uno o selecciona varios.</p>
+    </div>
+
+    <form class="admin-login" id="admin-login">
+      <label class="gallery-field">
+        <span>Contraseña de administrador</span>
+        <input id="admin-password" type="password" autocomplete="current-password" required minlength="16">
+      </label>
+      <button type="submit" class="gallery-create">Iniciar sesión</button>
+    </form>
+
+    <section id="admin-panel" hidden>
+      <div class="admin-actions">
+        <p class="gallery-selection" id="admin-selection" aria-live="polite">0 seleccionados</p>
+        <div class="admin-actions__buttons">
+          <button type="button" class="ghost" id="admin-refresh">Actualizar</button>
+          <button type="button" class="gallery-create" id="admin-approve-selected" disabled>Aprobar seleccionados</button>
+          <button type="button" class="ghost" id="admin-logout">Cerrar sesión</button>
+        </div>
+      </div>
+      <div class="admin-grid" id="admin-grid" aria-label="Stickers pendientes"></div>
+      <button type="button" class="ghost gallery-more" id="admin-more" hidden>Cargar más</button>
+    </section>
+
+    <p class="status gallery-status" id="admin-status" role="status" aria-live="polite">Inicia sesión para revisar los stickers pendientes.</p>
+  </main>
 </section>
 
 

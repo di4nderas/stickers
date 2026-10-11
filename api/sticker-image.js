@@ -1,4 +1,10 @@
-const { getConfig, readStickerCatalog, sendJson, telegramRequest } = require('../lib/stickers');
+const {
+  getConfig,
+  isAdminAuthenticated,
+  readStickerCatalog,
+  sendJson,
+  telegramRequest
+} = require('../lib/stickers');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -14,8 +20,13 @@ module.exports = async function handler(req, res) {
   try {
     const config = getConfig();
     const { catalog } = await readStickerCatalog(config);
-    const sticker = catalog.stickers.find(item => item.id === id && item.status === 'approved');
+    const sticker = catalog.stickers.find(item =>
+      item.id === id && (item.status === 'approved' || item.status === 'pending')
+    );
     if (!sticker) return sendJson(res, 404, { error: 'Sticker no encontrado.' });
+    if (sticker.status === 'pending' && !isAdminAuthenticated(req)) {
+      return sendJson(res, 404, { error: 'Sticker no encontrado.' });
+    }
     if (!sticker.telegram_file_id) {
       return sendJson(res, 404, { error: 'El archivo de este sticker todavía no está disponible.' });
     }
@@ -32,7 +43,10 @@ module.exports = async function handler(req, res) {
 
     res.setHeader('Content-Type', 'image/webp');
     res.setHeader('Content-Disposition', 'inline');
-    res.setHeader('Cache-Control', 'public, max-age=300, stale-while-revalidate=300');
+    res.setHeader(
+      'Cache-Control',
+      sticker.status === 'pending' ? 'private, no-store' : 'public, max-age=300, stale-while-revalidate=300'
+    );
     if (file.file_size) res.setHeader('Content-Length', String(file.file_size));
     return res.status(200).send(Buffer.from(await imageResponse.arrayBuffer()));
   } catch (error) {

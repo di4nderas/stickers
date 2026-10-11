@@ -58,6 +58,7 @@
       tool.scrollTop = 0;
       stampTool(toolId);
       if (toolId === 'tool3') document.dispatchEvent(new Event('sticker-gallery-open'));
+      if (toolId === 'tool4') document.dispatchEvent(new Event('sticker-admin-open'));
     }
 
     function closeTool(toolId) {
@@ -114,6 +115,224 @@
     }
 
     renderTimes();
+  })();
+
+  /* ============================================================
+     TOOL 4 - MODERACIÓN DE STICKERS
+     ============================================================ */
+  (function () {
+    const loginForm = document.getElementById('admin-login');
+    const passwordInput = document.getElementById('admin-password');
+    const panel = document.getElementById('admin-panel');
+    const grid = document.getElementById('admin-grid');
+    const status = document.getElementById('admin-status');
+    const selectionLabel = document.getElementById('admin-selection');
+    const approveSelected = document.getElementById('admin-approve-selected');
+    const refreshButton = document.getElementById('admin-refresh');
+    const logoutButton = document.getElementById('admin-logout');
+    const moreButton = document.getElementById('admin-more');
+    let stickers = [];
+    let offset = 0;
+    let hasMore = false;
+    let loading = false;
+    let selectedIds = new Set();
+
+    function setStatus(message, type = '') {
+      status.textContent = message;
+      status.classList.toggle('is-busy', type === 'busy');
+      status.classList.toggle('is-warn', type === 'warn');
+    }
+
+    function setAuthenticated(authenticated) {
+      loginForm.hidden = authenticated;
+      panel.hidden = !authenticated;
+      if (!authenticated) {
+        stickers = [];
+        selectedIds = new Set();
+        grid.replaceChildren();
+        updateSelection();
+      }
+    }
+
+    function updateSelection() {
+      selectionLabel.textContent = `${selectedIds.size} seleccionados`;
+      approveSelected.disabled = selectedIds.size === 0 || loading;
+    }
+
+    function renderStickers() {
+      grid.replaceChildren();
+      if (!stickers.length) {
+        const empty = document.createElement('p');
+        empty.className = 'gallery-empty';
+        empty.textContent = 'No hay stickers pendientes de aprobación.';
+        grid.appendChild(empty);
+        return;
+      }
+
+      for (const sticker of stickers) {
+        const card = document.createElement('article');
+        card.className = 'admin-card';
+        const image = document.createElement('img');
+        image.src = sticker.imageUrl;
+        image.alt = `Sticker ${sticker.filename}`;
+        image.loading = 'lazy';
+        image.onerror = () => {
+          image.removeAttribute('src');
+          image.alt = 'No se pudo cargar este sticker';
+        };
+
+        const meta = document.createElement('p');
+        meta.className = 'gallery-card__meta';
+        meta.textContent = `${sticker.pack_title} · ${sticker.author} · ${sticker.filename}` +
+          (sticker.is_animated ? ' · Animado' : '');
+
+        const controls = document.createElement('div');
+        controls.className = 'admin-card__controls';
+        const label = document.createElement('label');
+        label.className = 'admin-card__select';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = selectedIds.has(sticker.id);
+        checkbox.setAttribute('aria-label', `Seleccionar ${sticker.filename}`);
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked && selectedIds.size >= 100) {
+            checkbox.checked = false;
+            setStatus('Puedes aprobar un máximo de 100 stickers por lote.', 'warn');
+            return;
+          }
+          if (checkbox.checked) selectedIds.add(sticker.id);
+          else selectedIds.delete(sticker.id);
+          updateSelection();
+        });
+        label.append(checkbox, document.createTextNode(' Seleccionar'));
+
+        const approveButton = document.createElement('button');
+        approveButton.type = 'button';
+        approveButton.className = 'admin-card__approve';
+        approveButton.textContent = 'Aprobar';
+        approveButton.addEventListener('click', () => approveStickers([sticker.id]));
+        controls.append(label, approveButton);
+        card.append(image, meta, controls);
+        grid.appendChild(card);
+      }
+    }
+
+    async function requestJson(url, options = {}) {
+      const response = await fetch(url, { cache: 'no-store', ...options });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || `Error HTTP ${response.status}`);
+      return result;
+    }
+
+    async function checkSession() {
+      try {
+        const result = await requestJson('/api/admin-auth');
+        setAuthenticated(Boolean(result.authenticated));
+        if (result.authenticated) await loadPending(true);
+        else setStatus('Inicia sesión para revisar los stickers pendientes.');
+      } catch (error) {
+        setAuthenticated(false);
+        setStatus(error.message || 'No se pudo comprobar la sesión.', 'warn');
+      }
+    }
+
+    async function loadPending(reset = false) {
+      if (loading) return;
+      if (reset) {
+        stickers = [];
+        offset = 0;
+        hasMore = false;
+        selectedIds = new Set();
+      }
+      loading = true;
+      moreButton.hidden = true;
+      refreshButton.disabled = true;
+      moreButton.textContent = 'Cargar más';
+      setStatus('Cargando stickers pendientes…', 'busy');
+      updateSelection();
+      try {
+        const result = await requestJson(`/api/admin-stickers?limit=60&offset=${offset}`);
+        stickers = stickers.concat(result.stickers || []);
+        offset = Number(result.nextOffset) || stickers.length;
+        hasMore = Boolean(result.hasMore);
+        renderStickers();
+        moreButton.hidden = !hasMore;
+        setStatus(result.total
+          ? `${result.total} stickers pendientes en total.`
+          : 'No hay stickers pendientes de aprobación.');
+        return true;
+      } catch (error) {
+        if (error.message.includes('Inicia sesión')) setAuthenticated(false);
+        setStatus(error.message || 'No se pudieron cargar los stickers.', 'warn');
+        moreButton.hidden = false;
+        moreButton.textContent = stickers.length ? 'Cargar más' : 'Reintentar';
+        return false;
+      } finally {
+        loading = false;
+        refreshButton.disabled = false;
+        updateSelection();
+      }
+    }
+
+    async function approveStickers(ids) {
+      if (!ids.length || loading) return;
+      loading = true;
+      approveSelected.disabled = true;
+      refreshButton.disabled = true;
+      setStatus(`Aprobando ${ids.length} sticker${ids.length === 1 ? '' : 's'}…`, 'busy');
+      try {
+        const result = await requestJson('/api/admin-stickers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids })
+        });
+        selectedIds.clear();
+        loading = false;
+        const refreshed = await loadPending(true);
+        if (refreshed) {
+          setStatus(`${result.approved} sticker${result.approved === 1 ? '' : 's'} aprobado${result.approved === 1 ? '' : 's'}.`);
+        }
+      } catch (error) {
+        if (error.message.includes('Inicia sesión')) setAuthenticated(false);
+        setStatus(error.message || 'No se pudieron aprobar los stickers.', 'warn');
+      } finally {
+        loading = false;
+        refreshButton.disabled = false;
+        updateSelection();
+      }
+    }
+
+    loginForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const password = passwordInput.value;
+      passwordInput.value = '';
+      setStatus('Iniciando sesión…', 'busy');
+      try {
+        await requestJson('/api/admin-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        setAuthenticated(true);
+        await loadPending(true);
+      } catch (error) {
+        setStatus(error.message || 'No se pudo iniciar sesión.', 'warn');
+      }
+    });
+
+    approveSelected.addEventListener('click', () => approveStickers(Array.from(selectedIds)));
+    refreshButton.addEventListener('click', () => loadPending(true));
+    moreButton.addEventListener('click', () => loadPending(false));
+    logoutButton.addEventListener('click', async () => {
+      try {
+        await requestJson('/api/admin-auth', { method: 'DELETE' });
+        setAuthenticated(false);
+        setStatus('Sesión cerrada.');
+      } catch (error) {
+        setStatus(error.message || 'No se pudo cerrar la sesión.', 'warn');
+      }
+    });
+    document.addEventListener('sticker-admin-open', checkSession);
   })();
 
   /* ============================================================

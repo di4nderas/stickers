@@ -1039,6 +1039,179 @@
     #tool3 .gallery-footer { padding-right: 12px; padding-left: 12px; }
   }
 
+  #tool4 {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #tool4 .tool-head { flex: 0 0 auto; }
+  #tool4 [hidden] { display: none !important; }
+
+  #tool4 .admin-board {
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 22px 18px 28px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #2A3942 transparent;
+  }
+
+  #tool4 .admin-intro h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--ink);
+  }
+
+  #tool4 .admin-intro p {
+    margin: 5px 0 16px;
+    color: var(--ink-muted);
+    font-size: 0.875rem;
+  }
+
+  #tool4 .admin-login {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    gap: 12px;
+    max-width: 620px;
+  }
+
+  #tool4 .gallery-field {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--ink-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  #tool4 .admin-login input {
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--chat-bg);
+    color: var(--ink);
+    font: inherit;
+  }
+
+  #tool4 .admin-login .gallery-create,
+  #tool4 .admin-card__approve,
+  #tool4 .admin-actions__buttons button {
+    min-height: 40px;
+    padding: 8px 13px;
+    border-radius: var(--r-md);
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  #tool4 .admin-login .gallery-create,
+  #tool4 .admin-card__approve,
+  #tool4 #admin-approve-selected {
+    border: 0;
+    background: var(--green);
+    color: var(--green-dark);
+  }
+
+  #tool4 .admin-login .gallery-create:hover,
+  #tool4 .admin-card__approve:hover,
+  #tool4 #admin-approve-selected:hover:not(:disabled) { background: var(--green-hi); }
+
+  #tool4 .admin-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 4px 0 14px;
+  }
+
+  #tool4 .admin-actions .gallery-selection { margin: 0; }
+
+  #tool4 .admin-actions__buttons {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  #tool4 .admin-actions__buttons .ghost {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  #tool4 .admin-actions__buttons .ghost:hover { background: var(--surface-2); }
+  #tool4 button:disabled { cursor: not-allowed; opacity: .5; }
+
+  #tool4 .admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px;
+  }
+
+  #tool4 .admin-card {
+    min-width: 0;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--surface);
+  }
+
+  #tool4 .admin-card img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    border-radius: 8px;
+    background: var(--chat-bg);
+  }
+
+  #tool4 .admin-card .gallery-card__meta {
+    min-height: 2.4em;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  #tool4 .admin-card__controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  #tool4 .admin-card__select {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--ink-muted);
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+
+  #tool4 .admin-card__select input { accent-color: var(--green); }
+
+  #tool4 .admin-card__approve { min-height: 34px; padding: 5px 10px; }
+
+  #tool4 #admin-approve-selected:disabled { cursor: not-allowed; opacity: .45; }
+
+  @media (max-width: 560px) {
+    #tool4 .admin-board { padding: 16px 12px 20px; }
+    #tool4 .admin-actions { align-items: flex-start; flex-direction: column; }
+    #tool4 .admin-actions__buttons { width: 100%; justify-content: flex-start; }
+    #tool4 .admin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    #tool4 .admin-login { grid-template-columns: 1fr; }
+    #tool4 .admin-login .gallery-create { width: 100%; }
+  }
+
   #tool2 .doodle {
     position: fixed;
     inset: 0;
