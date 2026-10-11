@@ -506,7 +506,7 @@
       const s = items.length - a;
       if (a && s && !items._warned) {
         items._warned = true;
-        pushIn('Tienes animados y estáticos a la vez. WhatsApp no los mezcla en un mismo pack, así que se crearán packs separados.');
+        pushIn('Se combinarán stickers animados y estáticos en el mismo pack.');
       }
 
       announce(`${items.length} archivos añadidos.`);
@@ -1094,25 +1094,20 @@
         const ok = items.filter(i => i.out);
         if (!ok.length) throw new Error('Ningún archivo se pudo procesar.');
 
-        const groups = [
-          ...chunk(ok.filter(i => i.animated)).map(c => ({ kind: 'animados', files: c })),
-          ...chunk(ok.filter(i => !i.animated)).map(c => ({ kind: 'estáticos', files: c }))
-        ];
-        const hasBoth = ok.some(i => i.animated) && ok.some(i => !i.animated);
+        const groups = chunk(ok);
         let stamp = Math.floor(Date.now() / 1000);
         const made = [];
 
         for (let p = 0; p < groups.length; p++) {
-          const g = groups[p];
-          const title = baseTitle + (groups.length > 1 ? ` ${p + 1}` : '') + (hasBoth ? ` (${g.kind})` : '');
+          const files = groups[p];
+          const title = baseTitle + (groups.length > 1 ? ` ${p + 1}` : '');
           setProgress(`Empaquetando «${title}»…`);
 
           const zip = new JSZip();
           zip.file('author.txt', author);
           zip.file('title.txt', title);
-          for (const it of g.files) zip.file((stamp++) + '.webp', await it.out.arrayBuffer(), { compression: 'STORE' });
-          zip.file((stamp++) + '.png', await makeTray(g.files[0].out), { compression: 'STORE' });
-
+          for (const it of files) zip.file((stamp++) + '.webp', await it.out.arrayBuffer(), { compression: 'STORE' });
+          zip.file((stamp++) + '.png', await makeTray(files[0].out), { compression: 'STORE' });
           const blob = await zip.generateAsync({ type: 'blob' });
           const filename = title.replace(/[\\/:*?"<>|]/g, '_') + '.wastickers';
           const url = URL.createObjectURL(blob);
@@ -1121,19 +1116,19 @@
           a.href = url; a.download = filename;
           document.body.appendChild(a); a.click(); a.remove();
 
-          const entry = { title, filename, url, count: g.files.length, size: blob.size, preview: null };
+          const entry = { title, filename, url, count: files.length, size: blob.size, preview: null };
 
-          for (let i = 0; i < g.files.length; i++) {
+          for (let i = 0; i < files.length; i++) {
             if (archiveStopped) {
-              archiveFailureCount += g.files.length - i;
+              archiveFailureCount += files.length - i;
               break;
             }
             try {
-              await archiveSticker(g.files[i], title, author, i + 1, g.files.length);
+              await archiveSticker(files[i], title, author, i + 1, files.length);
             } catch (error) {
               archiveFailureCount++;
               archiveStopped = true;
-              archiveFailureCount += g.files.length - i - 1;
+              archiveFailureCount += files.length - i - 1;
               archiveFailureMessage = error.message || 'Error desconocido';
               console.error('No se pudo archivar un sticker:', error);
               break;
@@ -1143,7 +1138,7 @@
           /* Generar vista previa del pack */
           setProgress(`Generando vista previa de «${title}»…`);
           try {
-            const previewBlob = await generatePreview(g.files.map(f => f.out));
+            const previewBlob = await generatePreview(files.map(f => f.out));
             if (previewBlob) {
               const previewFilename = title.replace(/[\\/:*?"<>|]/g, '_') + '-vista-previa.png';
               entry.preview = {
@@ -1168,7 +1163,7 @@
           if (m.preview) pushPreviewResult(m);
         }
 
-        const small = groups.filter(g => g.files.length < 3).length;
+        const small = groups.filter(group => group.length < 3).length;
         let summary = made.length === 1
           ? 'Listo. 1 pack descargado.'
           : `Listo. ${made.length} packs descargados.`;
