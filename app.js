@@ -867,20 +867,16 @@
     }
 
     function getSelectedGalleryItems() {
-      return galleryItems.filter(item => selectedGalleryIds.has(item.id));
+      return Array.from(selectedGalleryIds)
+        .map(id => galleryItems.find(item => item.id === id))
+        .filter(Boolean);
     }
 
     function updateGallerySelection() {
       const selected = getSelectedGalleryItems();
-      const animatedCount = selected.filter(item => item.is_animated).length;
-      const staticCount = selected.length - animatedCount;
-      const validGroups = (!animatedCount || animatedCount >= 3) && (!staticCount || staticCount >= 3);
-      gallerySelection.textContent = `${selected.length}/30 seleccionados · mínimo 3 · máximo 30` +
-        (animatedCount && staticCount ? ` · ${staticCount} estáticos, ${animatedCount} animados` : '');
-      galleryCreate.disabled = selected.length < 3 || selected.length > 30 || !validGroups || galleryLoading;
-      if (selected.length >= 3 && !validGroups) {
-        setGalleryStatus('Cada pack debe tener al menos 3 stickers del mismo tipo. Añade más del tipo que falta o desmarca esa categoría.', 'warn');
-      } else if (galleryStatus.classList.contains('is-warn') && galleryItems.length && !galleryLoading) {
+      gallerySelection.textContent = `${selected.length}/30 seleccionados · mínimo 3 · máximo 30`;
+      galleryCreate.disabled = selected.length < 3 || selected.length > 30 || galleryLoading;
+      if (galleryStatus.classList.contains('is-warn') && galleryItems.length && !galleryLoading) {
         setGalleryStatus(`${galleryItems.length} stickers cargados. Selecciona de 3 a 30.`);
       }
       renderGallery();
@@ -992,12 +988,8 @@
 
     async function createSelectedPacks() {
       const selected = getSelectedGalleryItems();
-      const groups = [
-        { titleSuffix: 'estáticos', items: selected.filter(item => !item.is_animated) },
-        { titleSuffix: 'animados', items: selected.filter(item => item.is_animated) }
-      ].filter(group => group.items.length);
-      if (selected.length < 3 || selected.length > 30 || groups.some(group => group.items.length < 3)) {
-        setGalleryStatus('Selecciona de 3 a 30 stickers y al menos 3 de cada tipo seleccionado.', 'warn');
+      if (selected.length < 3 || selected.length > 30) {
+        setGalleryStatus('Selecciona de 3 a 30 stickers para crear el pack.', 'warn');
         return;
       }
 
@@ -1006,38 +998,33 @@
       try {
         const title = galleryTitle.value.trim() || 'Pack personalizado';
         const author = galleryAuthor.value.trim() || 'Yo';
-        for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
-          const group = groups[groupIndex];
-          setGalleryStatus(`Preparando pack ${groupIndex + 1} de ${groups.length} (${group.titleSuffix})…`, 'busy');
-          const blobs = [];
-          for (const item of group.items) {
-            const response = await fetch(item.imageUrl);
-            if (!response.ok) throw new Error(`No se pudo recuperar ${item.filename}.`);
-            blobs.push(await response.blob());
-          }
-
-          const packTitle = groups.length > 1 ? `${title} ${groupIndex + 1}` : title;
-          const zip = new JSZip();
-          zip.file('author.txt', author);
-          zip.file('title.txt', packTitle);
-          let stamp = Math.floor(Date.now() / 1000);
-          for (const blob of blobs) {
-            zip.file(`${stamp++}.webp`, await blob.arrayBuffer(), { compression: 'STORE' });
-          }
-          zip.file(`${stamp}.png`, await makeTray(blobs[0]), { compression: 'STORE' });
-          const archive = await zip.generateAsync({ type: 'blob' });
-          const filename = packTitle.replace(/[\\/:*?"<>|]/g, '_') + '.wastickers';
-          const url = URL.createObjectURL(archive);
-          const link = document.createElement('a');
-          link.href = url;
-          link.download = filename;
-          document.body.appendChild(link);
-          link.click();
-          link.remove();
-          window.setTimeout(() => URL.revokeObjectURL(url), 60000);
-          await new Promise(resolve => setTimeout(resolve, 250));
+        setGalleryStatus(`Preparando un pack con ${selected.length} stickers…`, 'busy');
+        const blobs = [];
+        for (const item of selected) {
+          const response = await fetch(item.imageUrl);
+          if (!response.ok) throw new Error(`No se pudo recuperar ${item.filename}.`);
+          blobs.push(await response.blob());
         }
-        setGalleryStatus(`${groups.length} pack${groups.length === 1 ? '' : 's'} personalizado${groups.length === 1 ? '' : 's'} descargado${groups.length === 1 ? '' : 's'}.`);
+
+        const zip = new JSZip();
+        zip.file('author.txt', author);
+        zip.file('title.txt', title);
+        let stamp = Math.floor(Date.now() / 1000);
+        for (const blob of blobs) {
+          zip.file(`${stamp++}.webp`, await blob.arrayBuffer(), { compression: 'STORE' });
+        }
+        zip.file(`${stamp}.png`, await makeTray(blobs[0]), { compression: 'STORE' });
+        const archive = await zip.generateAsync({ type: 'blob' });
+        const filename = title.replace(/[\\/:*?"<>|]/g, '_') + '.wastickers';
+        const url = URL.createObjectURL(archive);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+        setGalleryStatus(`Un pack personalizado con ${selected.length} stickers descargado.`);
       } catch (error) {
         console.error('No se pudo crear el pack personalizado:', error);
         setGalleryStatus(error.message || 'No se pudo crear el pack.', 'warn');

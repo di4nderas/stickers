@@ -21,6 +21,8 @@ Sitio estático servido por Vercel, con funciones Node.js en `api/`. El cliente 
 
 El repositorio público permite que cualquiera lea el catálogo, pero solo las funciones de Vercel reciben el token de escritura de GitHub y el token de Telegram. Las acciones de administración se autentican en el servidor y la sesión usa una cookie `HttpOnly`; los stickers pendientes no se exponen a visitantes públicos. La carga admite WebP de hasta 490 KB, evita duplicados y limita cada IP anonimizada a 120 envíos por hora. Nunca se guarda la IP en claro.
 
+Desde el historial, el pack personalizado reúne en un solo archivo `.wastickers` entre 3 y 30 stickers seleccionados, incluidos estáticos y animados. La compatibilidad de los packs mixtos depende de la aplicación Sticker Maker usada para importarlos.
+
 Cada sticker actualiza el archivo del catálogo en GitHub: primero se reserva para evitar duplicados y luego se guarda su identificador de Telegram. GitHub conserva el historial de esos cambios. Las imágenes permanecen en el chat privado de Telegram; visitantes de la web no tienen acceso al chat ni a los secretos.
 
 ## Publicar
