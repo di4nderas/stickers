@@ -1,5 +1,24 @@
 {
   "version": 1,
-  "stickers": [],
-  "uploadLimits": []
+  "stickers": [
+    {
+      "id": "b2b5f719-2ed9-47ef-b7bd-7c7d4388cf67",
+      "content_sha256": "626476e69cf94cda7b83721038872e5344a0eb8f957bfab24b32c4f8375a4567",
+      "telegram_file_id": null,
+      "telegram_message_id": null,
+      "filename": "8556f96cbb1ca6f25c5d018cdf2d1ac7.webp",
+      "pack_title": "Mi pack 1 (animados)",
+      "author": "Yo",
+      "is_animated": true,
+      "status": "uploading",
+      "created_at": "2026-10-11T23:45:16.216Z"
+    }
+  ],
+  "uploadLimits": [
+    {
+      "ip_hash": "68abfe6e04e511b34a5aa283019624a83786d38ff23a8e1f2c5f2da477331e54",
+      "window_started_at": "2026-10-11T23:45:16.216Z",
+      "request_count": 1
+    }
+  ]
 }
