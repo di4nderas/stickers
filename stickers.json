@@ -120,13 +120,25 @@
       "is_animated": false,
       "status": "pending",
       "created_at": "2026-10-11T23:54:25.179Z"
+    },
+    {
+      "id": "92b9d6e0-0917-4dd0-8919-ce65c29547f6",
+      "content_sha256": "878d8fd775d52fbea129809e291c4467aa5f99ab8c2841924b31bcde7174163b",
+      "telegram_file_id": null,
+      "telegram_message_id": null,
+      "filename": "el_senor_mi_pastor_4K.webp",
+      "pack_title": "Mi pack",
+      "author": "Yo",
+      "is_animated": false,
+      "status": "uploading",
+      "created_at": "2026-10-11T23:54:28.894Z"
     }
   ],
   "uploadLimits": [
     {
       "ip_hash": "68abfe6e04e511b34a5aa283019624a83786d38ff23a8e1f2c5f2da477331e54",
       "window_started_at": "2026-10-11T23:45:16.216Z",
-      "request_count": 10
+      "request_count": 11
     }
   ]
 }
