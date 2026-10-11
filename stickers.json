@@ -28,13 +28,13 @@
     {
       "id": "061efb69-c5d4-45a2-b381-f97e459bfad9",
       "content_sha256": "3dd69a2907a2af28769eecb7461a2424f8fd159c79f556afb9267555cdf14629",
-      "telegram_file_id": null,
-      "telegram_message_id": null,
+      "telegram_file_id": "CAACAgEAAxkDAAMOaswWVc0YZQa0TBNj7XqelbBXxwoAAo0HAAIh4mBGIgjm8OcVChM9BA",
+      "telegram_message_id": 14,
       "filename": "jesus_cartoon_4K.webp",
       "pack_title": "Mi pack",
       "author": "Yo",
       "is_animated": false,
-      "status": "uploading",
+      "status": "pending",
       "created_at": "2026-10-11T23:05:56.412Z"
     }
   ],
