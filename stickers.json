@@ -132,13 +132,25 @@
       "is_animated": false,
       "status": "pending",
       "created_at": "2026-10-11T23:54:28.894Z"
+    },
+    {
+      "id": "6f8f41fa-45ae-4b93-b561-e467ef2babc4",
+      "content_sha256": "e46499a46625159aa963ebf7b25fa4a48633a0caf9c29b5b025e97e0d8b5034a",
+      "telegram_file_id": null,
+      "telegram_message_id": null,
+      "filename": "oren_oreo_4K.webp",
+      "pack_title": "Mi pack",
+      "author": "Yo",
+      "is_animated": false,
+      "status": "uploading",
+      "created_at": "2026-10-11T23:54:32.122Z"
     }
   ],
   "uploadLimits": [
     {
       "ip_hash": "68abfe6e04e511b34a5aa283019624a83786d38ff23a8e1f2c5f2da477331e54",
       "window_started_at": "2026-10-11T23:45:16.216Z",
-      "request_count": 11
+      "request_count": 12
     }
   ]
 }
