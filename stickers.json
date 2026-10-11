@@ -52,13 +52,13 @@
     {
       "id": "ac60a2ff-93ec-47df-91c7-6e09d3ce2512",
       "content_sha256": "fd2e182951982b84beac23826693400cec44174e0c11b97fff0af4a39dca5ba9",
-      "telegram_file_id": null,
-      "telegram_message_id": null,
+      "telegram_file_id": "CAACAgEAAxkDAAMUaswbxzlnaE1_r4V-KNvrn9nYj90AAp8HAAIh4mBGkH3g1tE1-iU9BA",
+      "telegram_message_id": 20,
       "filename": "silueta_corona_charla_4K.webp",
       "pack_title": "Mi pack 2 (estáticos)",
       "author": "Yo",
       "is_animated": false,
-      "status": "uploading",
+      "status": "pending",
       "created_at": "2026-10-11T23:29:10.016Z"
     }
   ],
