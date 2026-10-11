@@ -100,13 +100,13 @@
     {
       "id": "6371942e-bc17-4ad3-8975-f88292bb7efa",
       "content_sha256": "ec85beae15327cc81c26e8d00d4eefe0652b3c74b56d47eb58be6b661876d7e3",
-      "telegram_file_id": null,
-      "telegram_message_id": null,
+      "telegram_file_id": "CAACAgEAAxkDAAMdaswhrCPe0n1Ulzmr5lax_ff60Q8AArMHAAIh4mBGcSHX83JFfgo9BA",
+      "telegram_message_id": 29,
       "filename": "RGulPWPiVaugVVh9sofG_1.webp",
       "pack_title": "Mi pack",
       "author": "Yo",
       "is_animated": false,
-      "status": "uploading",
+      "status": "pending",
       "created_at": "2026-10-11T23:54:19.163Z"
     }
   ],
