@@ -12,13 +12,25 @@
       "is_animated": true,
       "status": "pending",
       "created_at": "2026-10-11T23:45:16.216Z"
+    },
+    {
+      "id": "157a0ba7-3fdd-4399-8499-af2fc146425d",
+      "content_sha256": "d7b13ac3306574501fdb847f77621edcef356261ce0b08718c0614af7c7be807",
+      "telegram_file_id": null,
+      "telegram_message_id": null,
+      "filename": "21ed4f0ed02805fb8f050f4b487a6e40.webp",
+      "pack_title": "Mi pack 1 (animados)",
+      "author": "Yo",
+      "is_animated": true,
+      "status": "uploading",
+      "created_at": "2026-10-11T23:45:20.895Z"
     }
   ],
   "uploadLimits": [
     {
       "ip_hash": "68abfe6e04e511b34a5aa283019624a83786d38ff23a8e1f2c5f2da477331e54",
       "window_started_at": "2026-10-11T23:45:16.216Z",
-      "request_count": 1
+      "request_count": 2
     }
   ]
 }
