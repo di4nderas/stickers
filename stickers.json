@@ -112,13 +112,13 @@
     {
       "id": "2a312559-fcf6-4dd6-b19b-5870346e4898",
       "content_sha256": "9852630e9fb84d7a8fdec91ed82c64ad4026bda58255ae815b9d226d14a257d1",
-      "telegram_file_id": null,
-      "telegram_message_id": null,
+      "telegram_file_id": "CAACAgEAAxkDAAMeaswhsts5Q1FimixwB6cun0qiAAFyAAK0BwACIeJgRvH2UUR63kvIPQQ",
+      "telegram_message_id": 30,
       "filename": "volvera_corona_4K.webp",
       "pack_title": "Mi pack",
       "author": "Yo",
       "is_animated": false,
-      "status": "uploading",
+      "status": "pending",
       "created_at": "2026-10-11T23:54:25.179Z"
     }
   ],
