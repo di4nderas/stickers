@@ -2434,6 +2434,77 @@
       });
     }
 
+    async function captureVideoPlayback(video, bitmaps, duration) {
+      const frameDurations = [];
+      let lastFrameTime = null;
+      let nextFrameTime = 0;
+      let animationFrame = 0;
+      let timeout = 0;
+      let finished = false;
+
+      await video.play().catch(() => {
+        throw new Error('No se pudo reproducir el vídeo del sticker para convertirlo.');
+      });
+
+      try {
+        await new Promise((resolve, reject) => {
+          const cleanup = () => {
+            window.cancelAnimationFrame(animationFrame);
+            window.clearTimeout(timeout);
+            video.removeEventListener('error', onError);
+          };
+          const finish = error => {
+            if (finished) return;
+            finished = true;
+            cleanup();
+            if (error) reject(error);
+            else resolve();
+          };
+          const onError = () => finish(new Error('El navegador no pudo leer el vídeo de Telegram.'));
+          const captureFrame = async () => {
+            const time = Math.max(0, video.currentTime);
+            if (bitmaps.length && (video.ended || time >= duration)) {
+              finish();
+              return;
+            }
+            if (!bitmaps.length || time >= nextFrameTime) {
+              drawTelegramSticker(video, video.videoWidth, video.videoHeight);
+              const bitmap = await createImageBitmap(telegramWork);
+              if (finished) {
+                bitmap.close();
+                return;
+              }
+              bitmaps.push(bitmap);
+              if (lastFrameTime !== null) {
+                frameDurations[frameDurations.length - 1] =
+                  Math.max(20, Math.round((time - lastFrameTime) * 1000));
+              }
+              frameDurations.push(42);
+              lastFrameTime = time;
+              nextFrameTime = time + 1 / 24;
+              if (bitmaps.length % 5 === 0) {
+                setTelegramStatus(`Preparando fotograma ${bitmaps.length}…`, 'busy');
+              }
+            }
+            if (video.ended || time >= duration) {
+              finish();
+              return;
+            }
+            animationFrame = window.requestAnimationFrame(captureFrame);
+          };
+          video.addEventListener('error', onError, { once: true });
+          timeout = window.setTimeout(
+            () => finish(new Error('El vídeo del sticker tardó demasiado en reproducirse.')),
+            (duration + 2) * 1000
+          );
+          animationFrame = window.requestAnimationFrame(captureFrame);
+        });
+      } finally {
+        video.pause();
+      }
+      return frameDurations;
+    }
+
     async function encodeFrameSequence(bitmaps, durations, label) {
       let best = null;
       const samplingSteps = bitmaps.length > 100 ? [2, 3, 5] : [1, 2, 3];
@@ -2479,21 +2550,28 @@
           HTMLMediaElement.HAVE_CURRENT_DATA,
           'No se pudo cargar el primer fotograma del vídeo.'
         );
-        if (!video.videoWidth || !video.videoHeight || !Number.isFinite(video.duration)) {
+        const hasDuration = Number.isFinite(video.duration);
+        if (!video.videoWidth || !video.videoHeight || Number.isNaN(video.duration) ||
+            (hasDuration && video.duration <= 0)) {
           throw new Error('El vídeo del sticker no contiene una animación compatible.');
         }
         const duration = Math.min(video.duration, TELEGRAM_MAX_MS / 1000);
-        const step = Math.max(1 / 24, duration / 90);
-        const frameDurations = [];
-        for (let time = 0; time < duration; time += step) {
-          if (time > 0) await waitForSeek(video, time);
-          drawTelegramSticker(video, video.videoWidth, video.videoHeight);
-          bitmaps.push(await createImageBitmap(telegramWork));
-          frameDurations.push(Math.max(20, Math.round(Math.min(step, duration - time) * 1000)));
-          if (bitmaps.length % 5 === 0) {
-            setTelegramStatus(`${label} · Preparando fotograma ${bitmaps.length}…`, 'busy');
-            await tick();
+        let frameDurations;
+        if (hasDuration) {
+          const step = Math.max(1 / 24, duration / 90);
+          frameDurations = [];
+          for (let time = 0; time < duration; time += step) {
+            if (time > 0) await waitForSeek(video, time);
+            drawTelegramSticker(video, video.videoWidth, video.videoHeight);
+            bitmaps.push(await createImageBitmap(telegramWork));
+            frameDurations.push(Math.max(20, Math.round(Math.min(step, duration - time) * 1000)));
+            if (bitmaps.length % 5 === 0) {
+              setTelegramStatus(`${label} · Preparando fotograma ${bitmaps.length}…`, 'busy');
+              await tick();
+            }
           }
+        } else {
+          frameDurations = await captureVideoPlayback(video, bitmaps, TELEGRAM_MAX_MS / 1000);
         }
         if (!bitmaps.length) throw new Error('No se encontraron fotogramas en el sticker animado.');
         return await encodeFrameSequence(bitmaps, frameDurations, label);
