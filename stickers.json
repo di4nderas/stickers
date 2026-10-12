@@ -264,13 +264,25 @@
       "is_animated": true,
       "status": "pending",
       "created_at": "2026-10-12T01:16:42.471Z"
+    },
+    {
+      "id": "6190a418-95c8-428b-8a62-fd365f46ec69",
+      "content_sha256": "1cddad5222a4141afb14b7147efda5e2fd97ce21906c7441c5fa51ab98e3c60b",
+      "telegram_file_id": null,
+      "telegram_message_id": null,
+      "filename": "telegram-6.webp",
+      "pack_title": "1kY💎 :: @fStikBot",
+      "author": "Telegram",
+      "is_animated": false,
+      "status": "uploading",
+      "created_at": "2026-10-12T01:16:47.928Z"
     }
   ],
   "uploadLimits": [
     {
       "ip_hash": "68abfe6e04e511b34a5aa283019624a83786d38ff23a8e1f2c5f2da477331e54",
       "window_started_at": "2026-10-12T01:07:43.265Z",
-      "request_count": 9
+      "request_count": 10
     }
   ]
 }
