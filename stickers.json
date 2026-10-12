@@ -340,13 +340,13 @@
     {
       "id": "c618e1d2-8c86-47e7-9bfb-716f89712f43",
       "content_sha256": "9b28cbe6826a92ba13965fac2bcc4c4b7e46f125dca3a8a4462396a5f57b40c7",
-      "telegram_file_id": null,
-      "telegram_message_id": null,
+      "telegram_file_id": "CAACAgEAAxkDAAMxasw2iAMVFd40qmwMRJMvUiqiomsAAvEHAAIh4mBG8HXShMz22yQ9BA",
+      "telegram_message_id": 49,
       "filename": "telegram-2.webp",
       "pack_title": "Will2.0 :: @fStikBot",
       "author": "Telegram",
       "is_animated": false,
-      "status": "uploading",
+      "status": "pending",
       "created_at": "2026-10-12T01:23:18.994Z"
     }
   ],
