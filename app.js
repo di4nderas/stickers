@@ -2402,7 +2402,10 @@
         const onError = () => { cleanup(); reject(new Error('El navegador no pudo leer el vídeo de Telegram.')); };
         video.addEventListener('seeked', onSeeked, { once: true });
         video.addEventListener('error', onError, { once: true });
-        video.currentTime = time;
+        const target = Math.abs(video.currentTime - time) < 0.0005
+          ? time + 0.0005
+          : time;
+        video.currentTime = target;
       });
     }
 
@@ -2432,6 +2435,174 @@
         video.addEventListener('error', onError);
         if (video.readyState >= readyState) onReady();
       });
+    }
+
+    async function normalizeWebmDuration(blob) {
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
+      function readVint(offset, keepMarker = false) {
+        const first = bytes[offset];
+        if (!first) throw new Error('El vídeo WebM contiene una estructura inválida.');
+        let length = 1;
+        let marker = 0x80;
+        while (length <= 8 && !(first & marker)) {
+          length++;
+          marker >>= 1;
+        }
+        if (length > 8 || offset + length > bytes.length) {
+          throw new Error('El vídeo WebM contiene una estructura inválida.');
+        }
+        let value = keepMarker ? first : first & (marker - 1);
+        let unknown = !keepMarker && value === marker - 1;
+        for (let index = 1; index < length; index++) {
+          value = value * 256 + bytes[offset + index];
+          if (bytes[offset + index] !== 0xff) unknown = false;
+        }
+        return { length, value, unknown };
+      }
+
+      function readElement(offset, limit) {
+        if (offset >= limit) return null;
+        const id = readVint(offset, true);
+        const size = readVint(offset + id.length);
+        const data = offset + id.length + size.length;
+        const end = size.unknown ? limit : data + size.value;
+        if (end > limit || end < data) {
+          throw new Error('El vídeo WebM contiene una estructura inválida.');
+        }
+        return { id: id.value, data, end, size: end - data, next: end, unknown: size.unknown };
+      }
+
+      function children(start, end) {
+        const items = [];
+        for (let offset = start; offset < end;) {
+          const element = readElement(offset, end);
+          if (!element || element.next <= offset) break;
+          items.push(element);
+          offset = element.next;
+          if (element.unknown) break;
+        }
+        return items;
+      }
+
+      function unsigned(element) {
+        let value = 0;
+        for (let offset = element.data; offset < element.end; offset++) {
+          value = value * 256 + bytes[offset];
+        }
+        return value;
+      }
+
+      function floatValue(element) {
+        if (element.size === 4) return view.getFloat32(element.data, false);
+        if (element.size === 8) return view.getFloat64(element.data, false);
+        return null;
+      }
+
+      function blockTimestamp(block, clusterTimecode) {
+        const track = readVint(block.data);
+        const relativeOffset = block.data + track.length;
+        if (relativeOffset + 2 > block.end) return null;
+        return {
+          track: track.value,
+          ticks: clusterTimecode + view.getInt16(relativeOffset, false)
+        };
+      }
+
+      const topLevel = children(0, bytes.length);
+      const segment = topLevel.find(element => element.id === 0x18538067);
+      if (!segment) return { blob, duration: null };
+
+      const segmentElements = children(segment.data, segment.end);
+      const info = segmentElements.find(element => element.id === 0x1549a966);
+      const tracks = segmentElements.find(element => element.id === 0x1654ae6b);
+      const clusters = segmentElements.filter(element => element.id === 0x1f43b675);
+      const scaleElement = info && children(info.data, info.end).find(element => element.id === 0x2ad7b1);
+      const timecodeScale = scaleElement ? unsigned(scaleElement) : 1000000;
+      if (!Number.isFinite(timecodeScale) || timecodeScale <= 0) return { blob, duration: null };
+
+      const trackDurations = new Map();
+      if (tracks) {
+        for (const entry of children(tracks.data, tracks.end).filter(element => element.id === 0xae)) {
+          const fields = children(entry.data, entry.end);
+          const number = fields.find(element => element.id === 0xd7);
+          const defaultDuration = fields.find(element => element.id === 0x23e383);
+          if (number && defaultDuration) {
+            trackDurations.set(unsigned(number), unsigned(defaultDuration) / timecodeScale);
+          }
+        }
+      }
+
+      const timestamps = [];
+      let latestEnd = -Infinity;
+      for (const cluster of clusters) {
+        const elements = children(cluster.data, cluster.end);
+        const timecode = elements.find(element => element.id === 0xe7);
+        const clusterTimecode = timecode ? unsigned(timecode) : 0;
+        for (const element of elements) {
+          if (element.id === 0xa3) {
+            const block = blockTimestamp(element, clusterTimecode);
+            if (block) {
+              timestamps.push(block.ticks);
+              const frameTicks = trackDurations.get(block.track);
+              if (frameTicks) latestEnd = Math.max(latestEnd, block.ticks + frameTicks);
+            }
+          } else if (element.id === 0xa0) {
+            const group = children(element.data, element.end);
+            const blockElement = group.find(item => item.id === 0xa1);
+            if (blockElement) {
+              const block = blockTimestamp(blockElement, clusterTimecode);
+              if (block) {
+                timestamps.push(block.ticks);
+                const blockDuration = group.find(item => item.id === 0x9b);
+                const frameTicks = blockDuration
+                  ? unsigned(blockDuration)
+                  : trackDurations.get(block.track);
+                if (frameTicks) latestEnd = Math.max(latestEnd, block.ticks + frameTicks);
+              }
+            }
+          }
+        }
+      }
+
+      const ordered = Array.from(new Set(timestamps)).sort((a, b) => a - b);
+      if (!ordered.length) return { blob, duration: null };
+      const intervals = [];
+      for (let index = 1; index < ordered.length; index++) {
+        const interval = ordered[index] - ordered[index - 1];
+        if (interval > 0) intervals.push(interval);
+      }
+      intervals.sort((a, b) => a - b);
+      const typicalFrameTicks = intervals.length
+        ? intervals[Math.floor(intervals.length / 2)]
+        : 0;
+      const endTicks = Math.max(
+        latestEnd,
+        ordered[ordered.length - 1] + typicalFrameTicks
+      );
+      const recoveredDuration = endTicks * timecodeScale / 1e9;
+      if (!Number.isFinite(recoveredDuration) || recoveredDuration <= 0) {
+        return { blob, duration: null };
+      }
+
+      const durationElement = info &&
+        children(info.data, info.end).find(element => element.id === 0x4489);
+      const declaredTicks = durationElement && floatValue(durationElement);
+      const declaredDuration = Number.isFinite(declaredTicks)
+        ? declaredTicks * timecodeScale / 1e9
+        : null;
+      const mismatch = declaredDuration === null ||
+        Math.abs(declaredDuration - recoveredDuration) > Math.max(0.25, recoveredDuration * 0.1);
+
+      if (!mismatch || !durationElement ||
+          (durationElement.size !== 4 && durationElement.size !== 8)) {
+        return { blob, duration: recoveredDuration };
+      }
+      const correctedTicks = endTicks;
+      if (durationElement.size === 4) view.setFloat32(durationElement.data, correctedTicks, false);
+      else view.setFloat64(durationElement.data, correctedTicks, false);
+      return { blob: new Blob([bytes], { type: blob.type || 'video/webm' }), duration: recoveredDuration };
     }
 
     async function captureVideoPlayback(video, bitmaps, duration) {
@@ -2531,7 +2702,9 @@
     }
 
     async function convertVideoSticker(blob, label) {
-      const url = URL.createObjectURL(blob);
+      const normalized = await normalizeWebmDuration(blob);
+      const sourceBlob = normalized.blob;
+      const url = URL.createObjectURL(sourceBlob);
       const video = document.createElement('video');
       video.muted = true;
       video.playsInline = true;
@@ -2550,12 +2723,13 @@
           HTMLMediaElement.HAVE_CURRENT_DATA,
           'No se pudo cargar el primer fotograma del vídeo.'
         );
-        const hasDuration = Number.isFinite(video.duration);
-        if (!video.videoWidth || !video.videoHeight || Number.isNaN(video.duration) ||
-            (hasDuration && video.duration <= 0)) {
+        const sourceDuration = normalized.duration || video.duration;
+        const hasDuration = Number.isFinite(sourceDuration);
+        if (!video.videoWidth || !video.videoHeight || Number.isNaN(sourceDuration) ||
+            (hasDuration && sourceDuration <= 0)) {
           throw new Error('El vídeo del sticker no contiene una animación compatible.');
         }
-        const duration = Math.min(video.duration, TELEGRAM_MAX_MS / 1000);
+        const duration = Math.min(sourceDuration, TELEGRAM_MAX_MS / 1000);
         let frameDurations;
         if (hasDuration) {
           const step = Math.max(1 / 24, duration / 90);
