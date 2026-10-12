@@ -172,13 +172,13 @@
     {
       "id": "de1a5c04-d1a2-454b-b5fd-7790f825c304",
       "content_sha256": "afe62cd32f6cc34bc44515900d182beb0dc3d2941729a05ebedf9c40d7061cc4",
-      "telegram_file_id": null,
-      "telegram_message_id": null,
+      "telegram_file_id": "CAACAgEAAxkDAAMjaswy5Xd6Ho2SlS5JYOdd3EFV2i4AAt0HAAIh4mBGqWQ-KNOy60I9BA",
+      "telegram_message_id": 35,
       "filename": "telegram-2.webp",
       "pack_title": "1kY💎 :: @fStikBot",
       "author": "Telegram",
       "is_animated": true,
-      "status": "uploading",
+      "status": "pending",
       "created_at": "2026-10-12T01:07:47.909Z"
     }
   ],
