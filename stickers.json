@@ -312,13 +312,25 @@
       "is_animated": true,
       "status": "pending",
       "created_at": "2026-10-12T01:20:26.461Z"
+    },
+    {
+      "id": "11d25ff4-78ee-4f25-b0d3-0e5c8e34e578",
+      "content_sha256": "e1f381efae0ba3238ee76263f9e2a3278381cf2f334971ee3c75cd598d236c4d",
+      "telegram_file_id": null,
+      "telegram_message_id": null,
+      "filename": "1000172818.webp",
+      "pack_title": "Mi pack",
+      "author": "Yo",
+      "is_animated": true,
+      "status": "uploading",
+      "created_at": "2026-10-12T01:20:32.634Z"
     }
   ],
   "uploadLimits": [
     {
       "ip_hash": "68abfe6e04e511b34a5aa283019624a83786d38ff23a8e1f2c5f2da477331e54",
       "window_started_at": "2026-10-12T01:07:43.265Z",
-      "request_count": 13
+      "request_count": 14
     }
   ]
 }
