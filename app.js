@@ -1015,7 +1015,8 @@
         }
         zip.file(`${stamp}.png`, await makeTray(blobs[0]), { compression: 'STORE' });
         const archive = await zip.generateAsync({ type: 'blob' });
-        const filename = title.replace(/[\\/:*?"<>|]/g, '_') + '.wastickers';
+        const safeTitle = title.replace(/[\\/:*?"<>|]/g, '_').trim() || 'Pack personalizado';
+        const filename = safeTitle + '.wastickers';
         const url = URL.createObjectURL(archive);
         const link = document.createElement('a');
         link.href = url;
@@ -2160,6 +2161,554 @@
         timeNow.textContent = fmtClock(video.currentTime);
       }
     });
+
+    /* ---------- Importar packs públicos de Telegram ---------- */
+
+    const telegramForm = document.getElementById('telegram-pack-form');
+    const telegramUrl = document.getElementById('telegram-pack-url');
+    const telegramLoad = document.getElementById('telegram-pack-load');
+    const telegramContent = document.getElementById('telegram-pack-content');
+    const telegramTitle = document.getElementById('telegram-pack-title');
+    const telegramCount = document.getElementById('telegram-pack-count');
+    const telegramGrid = document.getElementById('telegram-pack-grid');
+    const telegramClear = document.getElementById('telegram-pack-clear');
+    const telegramOutputTitle = document.getElementById('telegram-output-title');
+    const telegramOutputAuthor = document.getElementById('telegram-output-author');
+    const telegramSelection = document.getElementById('telegram-selection');
+    const telegramCreate = document.getElementById('telegram-pack-create');
+    const telegramStatus = document.getElementById('telegram-pack-status');
+    const telegramWork = document.createElement('canvas');
+    telegramWork.width = telegramWork.height = SIZE;
+    const telegramWctx = telegramWork.getContext('2d', { willReadFrequently: true });
+    const TELEGRAM_MAX_MS = 9800;
+    let telegramStickers = [];
+    let telegramSelectedIds = new Set();
+    let telegramPreviewUrls = [];
+    let telegramBusy = false;
+
+    function setTelegramStatus(message, type = '') {
+      telegramStatus.textContent = message;
+      telegramStatus.classList.toggle('is-busy', type === 'busy');
+      telegramStatus.classList.toggle('is-warn', type === 'warn');
+    }
+
+    function drawTelegramSticker(source, width, height) {
+      telegramWctx.clearRect(0, 0, SIZE, SIZE);
+      const scale = Math.min(SIZE / width, SIZE / height);
+      telegramWctx.drawImage(
+        source,
+        (SIZE - width * scale) / 2,
+        (SIZE - height * scale) / 2,
+        width * scale,
+        height * scale
+      );
+    }
+
+    function encodeTelegramWebp(quality) {
+      return toWebpBlob(telegramWork, quality);
+    }
+
+    function makeTelegramTray(blob) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = canvas.height = 96;
+          canvas.getContext('2d').drawImage(img, 0, 0, 96, 96);
+          URL.revokeObjectURL(url);
+          canvas.toBlob(result => result
+            ? resolve(result)
+            : reject(new Error('No se pudo crear el ícono del pack.')), 'image/png');
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('No se pudo crear el ícono del pack.'));
+        };
+        img.src = url;
+      });
+    }
+
+    async function encodeTelegramStatic(blob) {
+      const decoder = new ImageDecoder({ data: await blob.arrayBuffer(), type: 'image/webp' });
+      await decoder.tracks.ready;
+      const { image: decoded } = await decoder.decode({ frameIndex: 0 });
+      drawTelegramSticker(decoded, decoded.displayWidth, decoded.displayHeight);
+      decoded.close();
+      decoder.close();
+
+      let best = null;
+      for (const quality of [0.9, 0.75, 0.6, 0.45, 0.3, 0.15]) {
+        const output = await encodeTelegramWebp(quality);
+        if (!best || output.size < best.size) best = output;
+        if (output.size <= STATIC_LIMIT) return { blob: output };
+      }
+      return { blob: best, tooBig: true };
+    }
+
+    function updateTelegramSelection() {
+      telegramSelection.textContent =
+        `${telegramSelectedIds.size}/30 seleccionados · mínimo 3 · máximo 30`;
+      telegramCreate.disabled = telegramSelectedIds.size < 3 || telegramBusy;
+      telegramGrid.querySelectorAll('.telegram-card').forEach(card => {
+        const selected = telegramSelectedIds.has(card.dataset.stickerId);
+        card.setAttribute('aria-pressed', String(selected));
+        const position = Array.from(telegramSelectedIds).indexOf(card.dataset.stickerId);
+        card.querySelector('.telegram-card__number').textContent = position < 0 ? '+' : String(position + 1);
+      });
+    }
+
+    function clearTelegramPack() {
+      telegramStickers = [];
+      telegramSelectedIds = new Set();
+      telegramPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+      telegramPreviewUrls = [];
+      telegramGrid.replaceChildren();
+      telegramContent.hidden = true;
+      telegramUrl.value = '';
+      telegramOutputTitle.value = 'Pack de Telegram';
+      telegramOutputAuthor.value = 'Telegram';
+      telegramForm.hidden = false;
+      telegramUrl.focus();
+      setTelegramStatus('Pega el enlace público de un pack de Telegram.');
+    }
+
+    function renderTelegramStickers() {
+      telegramGrid.replaceChildren();
+      for (const sticker of telegramStickers) {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'telegram-card';
+        card.dataset.stickerId = sticker.id;
+        card.setAttribute('aria-pressed', 'false');
+        card.setAttribute('aria-label', `Sticker ${Number(sticker.id) + 1}${sticker.emoji ? ` ${sticker.emoji}` : ''}`);
+
+        const image = document.createElement('img');
+        image.src = `/api/telegram-sticker-file?fileId=${encodeURIComponent(sticker.thumbnailFileId)}`;
+        image.alt = sticker.emoji || `Sticker ${Number(sticker.id) + 1}`;
+        image.loading = 'lazy';
+        image.onerror = () => {
+          if (sticker.format === 'animated' && !image.dataset.previewAttempted) {
+            image.dataset.previewAttempted = 'true';
+            renderTgsPreview(sticker, image).catch(error => {
+              console.warn('No se pudo renderizar la vista previa TGS:', error);
+              image.removeAttribute('src');
+              image.alt = 'Vista previa TGS no disponible';
+            });
+          } else if (sticker.format === 'video' && !image.dataset.previewAttempted) {
+            image.dataset.previewAttempted = 'true';
+            const preview = document.createElement('video');
+            preview.className = 'telegram-card__media';
+            preview.src = `/api/telegram-sticker-file?fileId=${encodeURIComponent(sticker.fileId)}`;
+            preview.muted = true;
+            preview.loop = true;
+            preview.autoplay = true;
+            preview.playsInline = true;
+            image.replaceWith(preview);
+            preview.play().catch(() => {});
+          } else {
+            image.removeAttribute('src');
+            image.alt = 'Vista previa no disponible';
+          }
+        };
+
+        const number = document.createElement('span');
+        number.className = 'telegram-card__number';
+        number.textContent = '+';
+        const meta = document.createElement('span');
+        meta.className = 'telegram-card__meta';
+        meta.textContent = `${sticker.emoji ? `${sticker.emoji} · ` : ''}` +
+          (sticker.format === 'video' ? 'Animado · vídeo' : sticker.format === 'animated' ? 'Animado · TGS' : 'Estático');
+        card.append(image, number, meta);
+        card.addEventListener('click', () => {
+          if (telegramSelectedIds.has(sticker.id)) {
+            telegramSelectedIds.delete(sticker.id);
+          } else if (telegramSelectedIds.size >= 30) {
+            setTelegramStatus('El máximo por pack es de 30 stickers.', 'warn');
+            return;
+          } else {
+            telegramSelectedIds.add(sticker.id);
+          }
+          updateTelegramSelection();
+        });
+        telegramGrid.appendChild(card);
+      }
+      updateTelegramSelection();
+    }
+
+    async function fetchTelegramFile(fileId) {
+      const response = await fetch(`/api/telegram-sticker-file?fileId=${encodeURIComponent(fileId)}`);
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || `No se pudo descargar un sticker (HTTP ${response.status}).`);
+      }
+      return response.blob();
+    }
+
+    async function renderTgsPreview(sticker, image) {
+      if (!('DecompressionStream' in window) || !window.lottie) {
+        throw new Error('No hay un renderizador TGS disponible.');
+      }
+      const blob = await fetchTelegramFile(sticker.fileId);
+      const decompressed = await new Response(
+        blob.stream().pipeThrough(new DecompressionStream('gzip'))
+      ).arrayBuffer();
+      const container = document.createElement('div');
+      Object.assign(container.style, {
+        position: 'fixed', left: '-10000px', top: '0', width: `${SIZE}px`, height: `${SIZE}px`
+      });
+      document.body.appendChild(container);
+      const animation = window.lottie.loadAnimation({
+        container,
+        renderer: 'canvas',
+        loop: false,
+        autoplay: false,
+        animationData: JSON.parse(new TextDecoder().decode(decompressed)),
+        rendererSettings: { dpr: 1, clearCanvas: true, preserveAspectRatio: 'xMidYMid meet' }
+      });
+      try {
+        await new Promise((resolve, reject) => {
+          animation.addEventListener('DOMLoaded', resolve, { once: true });
+          animation.addEventListener('data_failed', () => reject(new Error('No se pudo interpretar la animación TGS.')), { once: true });
+        });
+        animation.goToAndStop(0, true);
+        await new Promise(requestAnimationFrame);
+        const canvas = container.querySelector('canvas');
+        if (!canvas) throw new Error('No se pudo renderizar el primer fotograma TGS.');
+        const previewBlob = await new Promise((resolve, reject) => {
+          canvas.toBlob(blobResult => blobResult ? resolve(blobResult) : reject(new Error('No se pudo crear la vista previa.')), 'image/png');
+        });
+        const previewUrl = URL.createObjectURL(previewBlob);
+        telegramPreviewUrls.push(previewUrl);
+        image.src = previewUrl;
+      } finally {
+        animation.destroy();
+        container.remove();
+      }
+    }
+
+    function waitForSeek(video, time) {
+      return new Promise((resolve, reject) => {
+        const timeout = window.setTimeout(() => {
+          cleanup();
+          reject(new Error('El vídeo del sticker no pudo procesarse.'));
+        }, 10000);
+        const cleanup = () => {
+          window.clearTimeout(timeout);
+          video.removeEventListener('seeked', onSeeked);
+          video.removeEventListener('error', onError);
+        };
+        const onSeeked = () => { cleanup(); resolve(); };
+        const onError = () => { cleanup(); reject(new Error('El navegador no pudo leer el vídeo de Telegram.')); };
+        video.addEventListener('seeked', onSeeked, { once: true });
+        video.addEventListener('error', onError, { once: true });
+        video.currentTime = time;
+      });
+    }
+
+    function waitForVideoReady(video, readyState, errorMessage) {
+      if (video.readyState >= readyState) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const timeout = window.setTimeout(() => finish(new Error('El vídeo del sticker tardó demasiado en cargarse.')), 10000);
+        const cleanup = () => {
+          window.clearTimeout(timeout);
+          video.removeEventListener('loadedmetadata', onReady);
+          video.removeEventListener('loadeddata', onReady);
+          video.removeEventListener('canplay', onReady);
+          video.removeEventListener('error', onError);
+        };
+        const finish = error => {
+          cleanup();
+          if (error) reject(error);
+          else resolve();
+        };
+        const onReady = () => {
+          if (video.readyState >= readyState) finish();
+        };
+        const onError = () => finish(new Error(errorMessage));
+        video.addEventListener('loadedmetadata', onReady);
+        video.addEventListener('loadeddata', onReady);
+        video.addEventListener('canplay', onReady);
+        video.addEventListener('error', onError);
+        if (video.readyState >= readyState) onReady();
+      });
+    }
+
+    async function encodeFrameSequence(bitmaps, durations, label) {
+      let best = null;
+      const samplingSteps = bitmaps.length > 100 ? [2, 3, 5] : [1, 2, 3];
+      for (const step of samplingSteps) {
+        for (const quality of [0.8, 0.6, 0.4, 0.25]) {
+          setTelegramStatus(`${label} · Optimizando animación…`, 'busy');
+          const frames = [];
+          for (let i = 0; i < bitmaps.length; i += step) {
+            telegramWctx.clearRect(0, 0, SIZE, SIZE);
+            telegramWctx.drawImage(bitmaps[i], 0, 0);
+            const duration = durations.slice(i, i + step).reduce((sum, value) => sum + value, 0);
+            frames.push({
+              data: imageChunks(await (await encodeTelegramWebp(quality)).arrayBuffer()),
+              duration
+            });
+            if (frames.length % 5 === 0) await tick();
+          }
+          const blob = muxAnimated(frames);
+          if (!best || blob.size < best.size) best = blob;
+          if (blob.size <= ANIM_LIMIT) return { blob };
+        }
+      }
+      return { blob: best, tooBig: true };
+    }
+
+    async function convertVideoSticker(blob, label) {
+      const url = URL.createObjectURL(blob);
+      const video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.preload = 'auto';
+      const bitmaps = [];
+      try {
+        const metadataReady = waitForVideoReady(
+          video,
+          HTMLMediaElement.HAVE_METADATA,
+          'El navegador no pudo leer el vídeo de Telegram.'
+        );
+        video.src = url;
+        await metadataReady;
+        await waitForVideoReady(
+          video,
+          HTMLMediaElement.HAVE_CURRENT_DATA,
+          'No se pudo cargar el primer fotograma del vídeo.'
+        );
+        if (!video.videoWidth || !video.videoHeight || !Number.isFinite(video.duration)) {
+          throw new Error('El vídeo del sticker no contiene una animación compatible.');
+        }
+        const duration = Math.min(video.duration, TELEGRAM_MAX_MS / 1000);
+        const step = Math.max(1 / 24, duration / 90);
+        const frameDurations = [];
+        for (let time = 0; time < duration; time += step) {
+          if (time > 0) await waitForSeek(video, time);
+          drawTelegramSticker(video, video.videoWidth, video.videoHeight);
+          bitmaps.push(await createImageBitmap(telegramWork));
+          frameDurations.push(Math.max(20, Math.round(Math.min(step, duration - time) * 1000)));
+          if (bitmaps.length % 5 === 0) {
+            setTelegramStatus(`${label} · Preparando fotograma ${bitmaps.length}…`, 'busy');
+            await tick();
+          }
+        }
+        if (!bitmaps.length) throw new Error('No se encontraron fotogramas en el sticker animado.');
+        return await encodeFrameSequence(bitmaps, frameDurations, label);
+      } finally {
+        bitmaps.forEach(bitmap => bitmap.close());
+        video.removeAttribute('src');
+        video.load();
+        URL.revokeObjectURL(url);
+      }
+    }
+
+    async function convertTgsSticker(blob, label) {
+      if (!('DecompressionStream' in window) || !window.lottie) {
+        throw new Error('No están disponibles las herramientas para convertir stickers TGS. Recarga la página con conexión a Internet.');
+      }
+      const decompressed = await new Response(
+        blob.stream().pipeThrough(new DecompressionStream('gzip'))
+      ).arrayBuffer();
+      const animationData = JSON.parse(new TextDecoder().decode(decompressed));
+      const container = document.createElement('div');
+      Object.assign(container.style, {
+        position: 'fixed', left: '-10000px', top: '0', width: `${SIZE}px`, height: `${SIZE}px`
+      });
+      document.body.appendChild(container);
+      let animation;
+      const bitmaps = [];
+      try {
+        animation = window.lottie.loadAnimation({
+          container,
+          renderer: 'canvas',
+          loop: false,
+          autoplay: false,
+          animationData,
+          rendererSettings: { dpr: 1, clearCanvas: true, preserveAspectRatio: 'xMidYMid meet' }
+        });
+        await new Promise((resolve, reject) => {
+          animation.addEventListener('DOMLoaded', resolve, { once: true });
+          animation.addEventListener('data_failed', () => reject(new Error('No se pudo interpretar la animación TGS.')), { once: true });
+        });
+        const source = container.querySelector('canvas');
+        if (!source) throw new Error('No se pudo renderizar la animación TGS.');
+        const frameRate = animation.frameRate || animationData.fr || 60;
+        const totalFrames = Math.max(1, animation.totalFrames || 1);
+        const durationMs = Math.min(TELEGRAM_MAX_MS, totalFrames / frameRate * 1000);
+        const sampleStep = Math.max(1, Math.ceil(frameRate / 20));
+        const frameDurations = [];
+        for (let frame = 0; frame < totalFrames && frame / frameRate * 1000 < durationMs; frame += sampleStep) {
+          animation.goToAndStop(frame, true);
+          await new Promise(requestAnimationFrame);
+          drawTelegramSticker(source, source.width, source.height);
+          bitmaps.push(await createImageBitmap(telegramWork));
+          const remaining = durationMs - frame / frameRate * 1000;
+          frameDurations.push(Math.max(20, Math.round(Math.min(sampleStep * 1000 / frameRate, remaining))));
+          if (bitmaps.length % 5 === 0) {
+            setTelegramStatus(`${label} · Renderizando animación ${bitmaps.length}…`, 'busy');
+            await tick();
+          }
+        }
+        if (!bitmaps.length) throw new Error('No se encontraron fotogramas en la animación TGS.');
+        return await encodeFrameSequence(bitmaps, frameDurations, label);
+      } finally {
+        bitmaps.forEach(bitmap => bitmap.close());
+        if (animation) animation.destroy();
+        container.remove();
+      }
+    }
+
+    async function convertTelegramSticker(sticker) {
+      const source = await fetchTelegramFile(sticker.fileId);
+      const label = `Convirtiendo sticker ${Number(sticker.id) + 1} de ${telegramSelectedIds.size}`;
+      if (sticker.format === 'video') return convertVideoSticker(source, label);
+      if (sticker.format === 'animated') return convertTgsSticker(source, label);
+
+      const result = await encodeTelegramStatic(source);
+      if (result.tooBig) throw new Error(`El sticker ${Number(sticker.id) + 1} supera el límite WebP estático.`);
+      return result;
+    }
+
+    async function archiveTelegramSticker(blob, index, packTitle, author) {
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      let binary = '';
+      for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + 0x8000));
+      }
+      const response = await fetch('/api/sticker-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image: btoa(binary),
+          filename: `telegram-${index + 1}.webp`,
+          packTitle,
+          author
+        })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (response.status === 409) return 'duplicate';
+      if (!response.ok) throw new Error(result.error || `Error HTTP ${response.status}`);
+      return 'archived';
+    }
+
+    telegramForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (telegramBusy) return;
+      telegramBusy = true;
+      telegramLoad.disabled = true;
+      setTelegramStatus('Consultando el pack de Telegram…', 'busy');
+      try {
+        const response = await fetch(`/api/telegram-sticker-set?url=${encodeURIComponent(telegramUrl.value.trim())}`, {
+          cache: 'no-store'
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || `Error HTTP ${response.status}`);
+        if (!Array.isArray(result.stickers) || !result.stickers.length) {
+          throw new Error('Ese pack no contiene stickers disponibles.');
+        }
+        telegramStickers = result.stickers;
+        telegramSelectedIds = new Set();
+        telegramTitle.textContent = result.title || 'Pack de Telegram';
+        telegramCount.textContent = `${telegramStickers.length} stickers disponibles`;
+        telegramOutputTitle.value = (result.title || 'Pack de Telegram').slice(0, 60);
+        telegramOutputAuthor.value = 'Telegram';
+        telegramForm.hidden = true;
+        telegramContent.hidden = false;
+        renderTelegramStickers();
+        setTelegramStatus('Selecciona entre 3 y 30 stickers para crear un pack.');
+      } catch (error) {
+        console.error('No se pudo cargar el pack de Telegram:', error);
+        setTelegramStatus(error.message || 'No se pudo cargar el pack de Telegram.', 'warn');
+      } finally {
+        telegramBusy = false;
+        telegramLoad.disabled = false;
+      }
+    });
+
+    telegramClear.addEventListener('click', clearTelegramPack);
+    telegramCreate.addEventListener('click', async () => {
+      const selected = Array.from(telegramSelectedIds)
+        .map(id => telegramStickers.find(sticker => sticker.id === id))
+        .filter(Boolean);
+      if (selected.length < 3 || selected.length > 30 || telegramBusy) {
+        setTelegramStatus('Selecciona entre 3 y 30 stickers.', 'warn');
+        return;
+      }
+
+      telegramBusy = true;
+      telegramCreate.disabled = true;
+      telegramLoad.disabled = true;
+      const outputBlobs = [];
+      try {
+        const title = telegramOutputTitle.value.trim() || 'Pack de Telegram';
+        const author = telegramOutputAuthor.value.trim() || 'Telegram';
+        for (let index = 0; index < selected.length; index++) {
+          setTelegramStatus(`Descargando y convirtiendo sticker ${index + 1} de ${selected.length}…`, 'busy');
+          const converted = await convertTelegramSticker(selected[index]);
+          if (converted.tooBig) {
+            throw new Error(`El sticker ${index + 1} sigue superando el límite de tamaño de WhatsApp.`);
+          }
+          outputBlobs.push(converted.blob);
+        }
+
+        setTelegramStatus('Empaquetando stickers…', 'busy');
+        const zip = new JSZip();
+        zip.file('author.txt', author);
+        zip.file('title.txt', title);
+        let stamp = Math.floor(Date.now() / 1000);
+        for (const blob of outputBlobs) {
+          zip.file(`${stamp++}.webp`, await blob.arrayBuffer(), { compression: 'STORE' });
+        }
+        zip.file(`${stamp}.png`, await makeTelegramTray(outputBlobs[0]), { compression: 'STORE' });
+        const archive = await zip.generateAsync({ type: 'blob' });
+        const safeTitle = title.replace(/[\\/:*?"<>|]/g, '_').trim() || 'Pack de Telegram';
+        const filename = safeTitle + '.wastickers';
+        const url = URL.createObjectURL(archive);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+        let archived = 0;
+        let duplicates = 0;
+        const failures = [];
+        for (let index = 0; index < outputBlobs.length; index++) {
+          setTelegramStatus(`Pack descargado. Enviando sticker ${index + 1} de ${outputBlobs.length} a revisión…`, 'busy');
+          try {
+            const result = await archiveTelegramSticker(outputBlobs[index], index, title, author);
+            if (result === 'duplicate') duplicates++;
+            else archived++;
+          } catch (error) {
+            console.error(`No se pudo enviar el sticker ${index + 1} de Telegram al historial:`, error);
+            failures.push(error.message || `Error HTTP al enviar el sticker ${index + 1}.`);
+          }
+        }
+        const summary = `Pack descargado con ${selected.length} stickers. ${archived} enviados a revisión`;
+        const duplicateSummary = duplicates ? `, ${duplicates} ya estaban en el historial` : '';
+        if (failures.length) {
+          setTelegramStatus(
+            `${summary}${duplicateSummary}; ${failures.length} no se pudieron enviar. ${failures[0]}`,
+            'warn'
+          );
+        } else {
+          setTelegramStatus(`${summary}${duplicateSummary}. Aparecerán en el historial cuando se aprueben.`);
+        }
+      } catch (error) {
+        console.error('No se pudo crear el pack de Telegram:', error);
+        setTelegramStatus(error.message || 'No se pudo crear el pack.', 'warn');
+      } finally {
+        telegramBusy = false;
+        telegramLoad.disabled = false;
+        updateTelegramSelection();
+      }
+    });
+
+
 
     applyPanelMode();
   })();
